@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:adhan/adhan.dart';
 
 enum Prayer { fajr, dhuhr, asr, maghrib, isha }
@@ -83,10 +85,17 @@ class AppSettings {
 }
 
 class PrayerSchedule {
-  PrayerSchedule({required this.date, required this.times});
+  PrayerSchedule({
+    required this.date,
+    required this.times,
+    required this.sunrise,
+    required this.imsak,
+  });
 
   final DateTime date;
   final Map<Prayer, DateTime> times;
+  final DateTime sunrise;
+  final DateTime imsak;
 
   factory PrayerSchedule.calculate({
     required DateTime date,
@@ -117,6 +126,8 @@ class PrayerSchedule {
         Prayer.maghrib: result.maghrib,
         Prayer.isha: result.isha,
       },
+      sunrise: result.sunrise,
+      imsak: result.fajr.subtract(const Duration(minutes: 10)),
     );
   }
 
@@ -130,3 +141,37 @@ class PrayerSchedule {
 
 String formatClock(DateTime time) =>
     '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+
+/// Koordinaten der Kaaba in Mekka.
+const kaabaLatitude = 21.4225;
+const kaabaLongitude = 39.8262;
+
+/// Peilung (0–360°) von der eigenen Position zur Kaaba, gemessen von Norden
+/// im Uhrzeigersinn.
+double qiblaBearing(double latitude, double longitude) {
+  final phi1 = latitude * math.pi / 180;
+  final phi2 = kaabaLatitude * math.pi / 180;
+  final deltaLon = (kaabaLongitude - longitude) * math.pi / 180;
+  final y = math.sin(deltaLon);
+  final x =
+      math.cos(phi1) * math.tan(phi2) - math.sin(phi1) * math.cos(deltaLon);
+  final degrees = math.atan2(y, x) * 180 / math.pi;
+  return (degrees + 360) % 360;
+}
+
+/// Luftlinie zur Kaaba in Kilometern.
+double distanceToKaaba(double latitude, double longitude) {
+  const earthRadius = 6371.0;
+  final phi1 = latitude * math.pi / 180;
+  final phi2 = kaabaLatitude * math.pi / 180;
+  final deltaPhi = (kaabaLatitude - latitude) * math.pi / 180;
+  final deltaLon = (kaabaLongitude - longitude) * math.pi / 180;
+  final a =
+      math.sin(deltaPhi / 2) * math.sin(deltaPhi / 2) +
+      math.cos(phi1) *
+          math.cos(phi2) *
+          math.sin(deltaLon / 2) *
+          math.sin(deltaLon / 2);
+  return earthRadius * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
+}
+

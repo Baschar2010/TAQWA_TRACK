@@ -9,6 +9,7 @@ import 'package:intl/intl.dart';
 import 'app_controller.dart';
 import 'data/taqwa_repository.dart';
 import 'domain.dart';
+import 'prayer_qibla_screens.dart';
 import 'theme.dart';
 
 class MainShell extends StatefulWidget {
@@ -57,6 +58,8 @@ class _MainShellState extends State<MainShell> {
                 onMotivation: () => setState(() => _showMotivation = true),
               ),
         FamilyScreen(controller: c),
+        PrayerTimesScreen(controller: c),
+        QiblaScreen(controller: c),
       ];
       return Scaffold(
         extendBody: true,
@@ -99,6 +102,16 @@ class _MainShellState extends State<MainShell> {
               icon: Icon(Icons.family_restroom_outlined),
               selectedIcon: Icon(Icons.family_restroom),
               label: 'Family',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.mosque_outlined),
+              selectedIcon: Icon(Icons.mosque),
+              label: 'Gebete',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.explore_outlined),
+              selectedIcon: Icon(Icons.explore),
+              label: 'Qibla',
             ),
           ],
         ),
