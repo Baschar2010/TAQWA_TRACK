@@ -213,6 +213,8 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
           ),
         ),
         const SizedBox(height: 11),
+        _DailyHabitCard(controller: c, schedule: schedule),
+        const SizedBox(height: 11),
         const SectionTitle('Tagesübersicht', trailing: 'alle Zeiten'),
         TaqwaCard(
           padding: const EdgeInsets.all(9),
@@ -225,7 +227,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
                   isNext: entries[i].prayer != null && entries[i].prayer == next,
                   done: entries[i].prayer == null
                       ? null
-                      : (c.prayers[entries[i].prayer!] ?? false),
+                      : (c.todayPrayers[entries[i].prayer!] ?? false),
                 ),
                 if (i != entries.length - 1)
                   const Divider(
@@ -247,6 +249,255 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
       ],
     );
   }
+}
+
+class _DailyHabitCard extends StatelessWidget {
+  const _DailyHabitCard({required this.controller, required this.schedule});
+  final TaqwaController controller;
+  final PrayerSchedule schedule;
+
+  @override
+  Widget build(BuildContext context) {
+    final done = controller.completedPrayersToday;
+    final total = Prayer.values.length;
+    final allDone = controller.allPrayersTodayDone;
+    final accent = allDone ? TaqwaColors.gold : TaqwaColors.green;
+    final today = controller.today;
+    final weekday = DateFormat('EEEE', 'de_DE').format(today);
+    final dateLabel = DateFormat('d. MMMM', 'de_DE').format(today);
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: TaqwaColors.card,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: allDone
+              ? TaqwaColors.gold
+              : TaqwaColors.green.withValues(alpha: 0.55),
+          width: 1.2,
+        ),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x44000000),
+            blurRadius: 16,
+            offset: Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Eyebrow(
+                  'HEUTE · $weekday'.toUpperCase(),
+                  color: accent,
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 3,
+                ),
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: accent),
+                ),
+                child: Text(
+                  '$done/$total',
+                  style: TextStyle(
+                    color: accent,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
+                child: Text(
+                  'Tages-Habits',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: allDone ? TaqwaColors.goldLight : TaqwaColors.text,
+                  ),
+                ),
+              ),
+              Text(
+                dateLabel,
+                style: const TextStyle(
+                  color: TaqwaColors.muted,
+                  fontSize: 9,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 9),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: TweenAnimationBuilder<double>(
+              tween: Tween<double>(begin: 0, end: done / total),
+              duration: const Duration(milliseconds: 400),
+              builder: (context, value, _) => LinearProgressIndicator(
+                value: value,
+                minHeight: 7,
+                backgroundColor: const Color(0xFF241F16),
+                valueColor: AlwaysStoppedAnimation<Color>(accent),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          for (final prayer in Prayer.values)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: _HabitPrayerRow(
+                prayer: prayer,
+                time: schedule.times[prayer]!,
+                done: controller.todayPrayers[prayer] ?? false,
+                accent: accent,
+                onTap: () async {
+                  HapticFeedback.selectionClick();
+                  final award = await controller.togglePrayerToday(prayer);
+                  if (context.mounted && award.xpAdded > 0) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('+${award.xpAdded} XP gutgeschrieben'),
+                        duration: const Duration(seconds: 1),
+                      ),
+                    );
+                  }
+                },
+              ),
+            ),
+          const SizedBox(height: 2),
+          Row(
+            children: [
+              Icon(
+                allDone ? Icons.emoji_events : Icons.flag_outlined,
+                size: 13,
+                color: accent,
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  allDone
+                      ? 'Alle 5 Gebete erledigt – MashaAllah!'
+                      : 'Noch ${total - done} ${total - done == 1 ? 'Gebet' : 'Gebete'} bis zum Tagesziel',
+                  style: TextStyle(
+                    color: accent,
+                    fontSize: 9,
+                    fontWeight: allDone ? FontWeight.w700 : FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _HabitPrayerRow extends StatelessWidget {
+  const _HabitPrayerRow({
+    required this.prayer,
+    required this.time,
+    required this.done,
+    required this.accent,
+    required this.onTap,
+  });
+  final Prayer prayer;
+  final DateTime time;
+  final bool done;
+  final Color accent;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    button: true,
+    checked: done,
+    label: '${prayerNames[prayer]}, ${done ? 'erledigt' : 'offen'}',
+    child: InkWell(
+      key: ValueKey('habit-${prayer.name}'),
+      borderRadius: BorderRadius.circular(10),
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 250),
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 8),
+        decoration: BoxDecoration(
+          color: done ? accent.withValues(alpha: 0.14) : const Color(0xFF111111),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: done ? accent : TaqwaColors.border,
+          ),
+        ),
+        child: Row(
+          children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              width: 22,
+              height: 22,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: done ? accent : Colors.transparent,
+                border: Border.all(
+                  color: done ? accent : const Color(0xFF5A5A54),
+                  width: 1.4,
+                ),
+              ),
+              child: done
+                  ? const Icon(
+                      Icons.check,
+                      size: 15,
+                      color: Color(0xFF17120A),
+                    )
+                  : null,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    prayerNames[prayer]!,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: done ? FontWeight.w800 : FontWeight.w600,
+                      color: done ? accent : TaqwaColors.text,
+                    ),
+                  ),
+                  Text(
+                    done ? 'Erledigt' : 'Antippen zum Abhaken',
+                    style: const TextStyle(
+                      color: TaqwaColors.muted,
+                      fontSize: 8,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Text(
+              formatClock(time),
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: done ? accent : TaqwaColors.muted,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
 }
 
 class _TimeEntry {

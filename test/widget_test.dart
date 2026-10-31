@@ -173,6 +173,37 @@ void main() {
     await tester.pump();
     expect(controller.familyPrayers[member.id]?['fajr'], isTrue);
   });
+
+  testWidgets('Gebete-Tab zeigt die Tages-Habits und hakt sie ab', (
+    tester,
+  ) async {
+    await tester.pumpWidget(TaqwaTrackApp(controller: controller));
+    await settleApp(tester);
+
+    await tester.tap(find.text('Gebete'));
+    await settleApp(tester);
+    expect(find.text('Tages-Habits'), findsOneWidget);
+    expect(find.textContaining('HEUTE ·'), findsOneWidget);
+    expect(find.text('0/5'), findsOneWidget);
+    expect(find.textContaining('bis zum Tagesziel'), findsOneWidget);
+
+    final fajr = find.byKey(const ValueKey('habit-fajr'));
+    await tester.ensureVisible(fajr);
+    await tester.tap(fajr);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(controller.todayPrayers[Prayer.fajr], isTrue);
+    expect(find.text('1/5'), findsOneWidget);
+
+    for (final prayer in Prayer.values.skip(1)) {
+      await controller.togglePrayerToday(prayer);
+    }
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(controller.allPrayersTodayDone, isTrue);
+    expect(find.text('5/5'), findsOneWidget);
+    expect(find.textContaining('MashaAllah'), findsOneWidget);
+  });
 }
 
 Future<void> settleApp(WidgetTester tester) async {

@@ -20,6 +20,7 @@ class TaqwaController extends ChangeNotifier {
   AppSettings? settings;
   PrayerSchedule? schedule;
   Map<Prayer, bool> prayers = {};
+  Map<Prayer, bool> todayPrayers = {};
   List<Habit> habits = [];
   Map<int, HabitStatus> todayHabits = {};
   Map<String, Map<int, HabitStatus>> weekHabits = {};
@@ -30,7 +31,16 @@ class TaqwaController extends ChangeNotifier {
   String? error;
 
   DateTime get now => _clock();
+  DateTime get today {
+    final current = now;
+    return DateTime(current.year, current.month, current.day);
+  }
+
   int get completedPrayers => prayers.values.where((done) => done).length;
+  int get completedPrayersToday =>
+      todayPrayers.values.where((done) => done).length;
+  bool get allPrayersTodayDone =>
+      completedPrayersToday == Prayer.values.length;
   int get completedHabits =>
       todayHabits.values.where((s) => s == HabitStatus.done).length;
   Prayer? get nextPrayer => schedule?.nextPrayer(now);
@@ -64,6 +74,9 @@ class TaqwaController extends ChangeNotifier {
       hanafi: current.hanafi,
     );
     prayers = await repository.prayerStatuses(selectedDate);
+    todayPrayers = dayKey(selectedDate) == dayKey(now)
+        ? Map<Prayer, bool>.of(prayers)
+        : await repository.prayerStatuses(now);
     habits = (await repository.habits())
         .map(
           (row) => Habit(id: row['id']! as int, name: row['name']! as String),
@@ -80,6 +93,16 @@ class TaqwaController extends ChangeNotifier {
 
   Future<PrayerAward> togglePrayer(Prayer prayer) async {
     final award = await repository.togglePrayer(selectedDate, prayer);
+    settings = await repository.loadSettings();
+    await refresh();
+    notifyListeners();
+    return award;
+  }
+
+  /// Hakt ein Gebet immer für den heutigen Tag ab – unabhängig davon,
+  /// welcher Tag gerade im Kalender ausgewählt ist.
+  Future<PrayerAward> togglePrayerToday(Prayer prayer) async {
+    final award = await repository.togglePrayer(today, prayer);
     settings = await repository.loadSettings();
     await refresh();
     notifyListeners();
