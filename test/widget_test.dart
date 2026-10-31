@@ -19,6 +19,8 @@ class _FakeRepository extends TaqwaRepository {
     lastCompletedDay: null,
     calculationMethod: 'muslim_world_league',
     hanafi: true,
+    profileId: 'TEST01',
+    onboarded: true,
   );
   final prayerLog = <Prayer, bool>{for (final p in Prayer.values) p: false};
   final habitList = <Map<String, Object?>>[
@@ -78,6 +80,34 @@ class _FakeRepository extends TaqwaRepository {
       habitList.removeWhere((h) => h['id'] == id);
   @override
   Future<List<FamilyMember>> familyMembers() async => [...members];
+  @override
+  Future<void> removeFamilyMember(int id) async {
+    members.removeWhere((m) => m.id == id);
+    familyLog.remove(id);
+  }
+
+  @override
+  Future<List<Partner>> partners() async => [...linkedPartners];
+  final linkedPartners = <Partner>[];
+  @override
+  Future<bool> linkPartner(String code, String name) async {
+    final clean = code.trim().toUpperCase();
+    if (clean.isEmpty || linkedPartners.any((p) => p.code == clean)) {
+      return false;
+    }
+    linkedPartners.add(
+      Partner(
+        id: linkedPartners.length + 1,
+        code: clean,
+        name: name.trim().isEmpty ? 'Partner' : name.trim(),
+      ),
+    );
+    return true;
+  }
+
+  @override
+  Future<void> unlinkPartner(int id) async =>
+      linkedPartners.removeWhere((p) => p.id == id);
   @override
   Future<int> addFamilyMember(String name) async {
     final id = members.length + 1;
@@ -203,6 +233,73 @@ void main() {
     expect(controller.allPrayersTodayDone, isTrue);
     expect(find.text('5/5'), findsOneWidget);
     expect(find.textContaining('MashaAllah'), findsOneWidget);
+  });
+
+  testWidgets('Familienmitglieder lassen sich wieder löschen', (tester) async {
+    await tester.pumpWidget(TaqwaTrackApp(controller: controller));
+    await settleApp(tester);
+    await tester.tap(find.text('Family'));
+    await settleApp(tester);
+
+    await controller.addFamilyMember('Aisha');
+    await tester.pump();
+    expect(controller.family, hasLength(1));
+    expect(find.text('Aisha'), findsOneWidget);
+
+    await tester.tap(find.byIcon(Icons.delete_outline));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('Mitglied löschen?'), findsOneWidget);
+
+    await tester.tap(find.text('Löschen'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(controller.family, isEmpty);
+    expect(find.text('Noch keine Mitglieder'), findsOneWidget);
+  });
+
+  testWidgets('Hadith-Sammlung und Quran sind vom Home-Tab erreichbar', (
+    tester,
+  ) async {
+    await tester.pumpWidget(TaqwaTrackApp(controller: controller));
+    await settleApp(tester);
+
+    await tester.drag(
+      find.byType(Scrollable).first,
+      const Offset(0, -400),
+    );
+    await settleApp(tester);
+    await tester.tap(find.text('Alle ›'));
+    await settleApp(tester);
+    await settleApp(tester);
+    expect(find.text('Hadith-Sammlung'), findsOneWidget);
+
+    await tester.pageBack();
+    await settleApp(tester);
+
+    await tester.drag(
+      find.byType(Scrollable).first,
+      const Offset(0, -400),
+    );
+    await settleApp(tester);
+    await tester.tap(find.text('114 Suren lesen'));
+    await settleApp(tester);
+    await settleApp(tester);
+    expect(find.text('Al-Faatiha'), findsOneWidget);
+    expect(find.text('Sure suchen …'), findsOneWidget);
+  });
+
+  testWidgets('Partner-Kopplung speichert den Code', (tester) async {
+    await tester.pumpWidget(TaqwaTrackApp(controller: controller));
+    await settleApp(tester);
+    await tester.tap(find.text('Family'));
+    await settleApp(tester);
+
+    expect(find.text('TEST01'), findsOneWidget);
+    expect(await controller.linkPartner('ABCDEF', 'Aisha'), isTrue);
+    await tester.pump();
+    expect(controller.partners.single.name, 'Aisha');
+    expect(await controller.linkPartner('ABCDEF', 'Doppelt'), isFalse);
   });
 }
 

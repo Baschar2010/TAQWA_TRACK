@@ -20,6 +20,13 @@ class FamilyMember {
   final String name;
 }
 
+class Partner {
+  const Partner({required this.id, required this.code, required this.name});
+  final int id;
+  final String code;
+  final String name;
+}
+
 class TaqwaRepository {
   TaqwaRepository({DatabaseFactory? factory, String? path})
     : _factory = factory ?? databaseFactory,
@@ -35,7 +42,11 @@ class TaqwaRepository {
         _path ?? p.join(await getDatabasesPath(), 'taqwa_track.sqlite');
     _db = await _factory.openDatabase(
       path,
-      options: OpenDatabaseOptions(version: 1, onCreate: _createSchema),
+      options: OpenDatabaseOptions(
+        version: 2,
+        onCreate: _createSchema,
+        onUpgrade: _upgradeSchema,
+      ),
     );
     return _db!;
   }
@@ -51,7 +62,9 @@ class TaqwaRepository {
       longitude REAL NOT NULL,
       last_completed_day TEXT,
       calculation_method TEXT NOT NULL DEFAULT 'muslim_world_league',
-      hanafi INTEGER NOT NULL DEFAULT 1
+      hanafi INTEGER NOT NULL DEFAULT 1,
+      profile_id TEXT NOT NULL DEFAULT '',
+      onboarded INTEGER NOT NULL DEFAULT 0
     )''');
     await db.insert('settings', {
       'id': 1,
@@ -64,6 +77,8 @@ class TaqwaRepository {
       'last_completed_day': null,
       'calculation_method': 'muslim_world_league',
       'hanafi': 1,
+      'profile_id': generateProfileCode(),
+      'onboarded': 0,
     });
     await db.execute('''CREATE TABLE prayer_logs (
       day TEXT NOT NULL,
@@ -110,6 +125,35 @@ class TaqwaRepository {
       PRIMARY KEY (day, member_id, prayer),
       FOREIGN KEY (member_id) REFERENCES family_members(id) ON DELETE CASCADE
     )''');
+    await db.execute('''CREATE TABLE partners (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      code TEXT NOT NULL UNIQUE,
+      name TEXT NOT NULL,
+      linked_at TEXT NOT NULL
+    )''');
+  }
+
+  Future<void> _upgradeSchema(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      await db.execute(
+        "ALTER TABLE settings ADD COLUMN profile_id TEXT NOT NULL DEFAULT ''",
+      );
+      await db.execute(
+        'ALTER TABLE settings ADD COLUMN onboarded INTEGER NOT NULL DEFAULT 0',
+      );
+      await db.execute('''CREATE TABLE IF NOT EXISTS partners (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        code TEXT NOT NULL UNIQUE,
+        name TEXT NOT NULL,
+        linked_at TEXT NOT NULL
+      )''');
+      final rows = await db.query('settings', where: 'id = 1');
+      if (rows.isNotEmpty && (rows.single['profile_id'] as String).isEmpty) {
+        await db.update('settings', {
+          'profile_id': generateProfileCode(),
+        }, where: 'id = 1');
+      }
+    }
   }
 
   Future<AppSettings> loadSettings() async {
@@ -125,6 +169,8 @@ class TaqwaRepository {
       lastCompletedDay: row['last_completed_day'] as String?,
       calculationMethod: row['calculation_method']! as String,
       hanafi: row['hanafi'] == 1,
+      profileId: (row['profile_id'] as String?) ?? '',
+      onboarded: row['onboarded'] == 1,
     );
   }
 
@@ -331,6 +377,58 @@ class TaqwaRepository {
 
   Future<int> addFamilyMember(String name) async =>
       (await database).insert('family_members', {'name': name.trim()});
+
+  Future<void> removeFamilyMember(int id) async {
+    final db = await database;
+    await db.delete(
+      'family_prayers',
+      where: 'member_id = ?',
+      whereArgs: [id],
+    );
+    await db.delete('family_members', where: 'id = ?', whereArgs: [id]);
+  }
+
+  Future<void> completeOnboarding(String name, String profileId) async {
+    await (await database).update('settings', {
+      'name': name.trim(),
+      'profile_id': profileId,
+      'onboarded': 1,
+    }, where: 'id = 1');
+  }
+
+  Future<List<Partner>> partners() async => (await database)
+      .query('partners', orderBy: 'id')
+      .then(
+        (rows) => rows
+            .map(
+              (r) => Partner(
+                id: r['id']! as int,
+                code: r['code']! as String,
+                name: r['name']! as String,
+              ),
+            )
+            .toList(),
+      );
+
+  Future<bool> linkPartner(String code, String name) async {
+    final clean = code.trim().toUpperCase();
+    if (clean.isEmpty) return false;
+    final exists = await (await database).query(
+      'partners',
+      where: 'code = ?',
+      whereArgs: [clean],
+    );
+    if (exists.isNotEmpty) return false;
+    await (await database).insert('partners', {
+      'code': clean,
+      'name': name.trim().isEmpty ? 'Partner' : name.trim(),
+      'linked_at': DateTime.now().toIso8601String(),
+    });
+    return true;
+  }
+
+  Future<void> unlinkPartner(int id) async =>
+      (await database).delete('partners', where: 'id = ?', whereArgs: [id]);
 
   Future<Map<String, bool>> familyPrayerStatus(
     DateTime date,

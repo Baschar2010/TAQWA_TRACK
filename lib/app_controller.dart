@@ -25,6 +25,7 @@ class TaqwaController extends ChangeNotifier {
   Map<int, HabitStatus> todayHabits = {};
   Map<String, Map<int, HabitStatus>> weekHabits = {};
   List<FamilyMember> family = [];
+  List<Partner> partners = [];
   Map<int, Map<String, bool>> familyPrayers = {};
   DateTime selectedDate = DateTime.now();
   bool ready = false;
@@ -85,6 +86,7 @@ class TaqwaController extends ChangeNotifier {
     todayHabits = await repository.habitStatuses(selectedDate);
     weekHabits = await repository.habitWeek(selectedDate);
     family = await repository.familyMembers();
+    partners = await repository.partners();
     familyPrayers = {
       for (final member in family)
         member.id: await repository.familyPrayerStatus(selectedDate, member.id),
@@ -204,6 +206,35 @@ class TaqwaController extends ChangeNotifier {
     if (name.trim().isEmpty) return;
     await repository.addFamilyMember(name);
     await refresh();
+    notifyListeners();
+  }
+
+  Future<void> removeFamilyMember(int id) async {
+    await repository.removeFamilyMember(id);
+    await refresh();
+    notifyListeners();
+  }
+
+  Future<void> completeOnboarding(String name, {String? code}) async {
+    final current = settings?.profileId ?? '';
+    final profileCode = (code == null || code.isEmpty)
+        ? (current.isEmpty ? generateProfileCode() : current)
+        : code;
+    await repository.completeOnboarding(name, profileCode);
+    settings = await repository.loadSettings();
+    notifyListeners();
+  }
+
+  Future<bool> linkPartner(String code, String name) async {
+    final linked = await repository.linkPartner(code, name);
+    partners = await repository.partners();
+    notifyListeners();
+    return linked;
+  }
+
+  Future<void> unlinkPartner(int id) async {
+    await repository.unlinkPartner(id);
+    partners = await repository.partners();
     notifyListeners();
   }
 

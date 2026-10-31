@@ -9,7 +9,10 @@ import 'package:intl/intl.dart';
 import 'app_controller.dart';
 import 'data/taqwa_repository.dart';
 import 'domain.dart';
+import 'hadith_screen.dart';
+import 'onboarding_screen.dart';
 import 'prayer_qibla_screens.dart';
+import 'quran_screen.dart';
 import 'theme.dart';
 
 class MainShell extends StatefulWidget {
@@ -44,6 +47,9 @@ class _MainShellState extends State<MainShell> {
             child: CircularProgressIndicator(color: TaqwaColors.gold),
           ),
         );
+      }
+      if (!c.settings!.onboarded) {
+        return OnboardingScreen(controller: c);
       }
       final pages = <Widget>[
         CalendarScreen(controller: c),
@@ -411,6 +417,64 @@ class _HomeScreenState extends State<HomeScreen> {
                 ],
               ),
             ],
+          ),
+        ),
+        const SizedBox(height: 10),
+        HadithOfTheDayCard(
+          onOpenAll: () => Navigator.of(context).push(
+            MaterialPageRoute<void>(builder: (_) => const HadithListScreen()),
+          ),
+        ),
+        const SizedBox(height: 10),
+        TaqwaCard(
+          padding: EdgeInsets.zero,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(14),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const QuranScreen()),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(11),
+              child: Row(
+                children: [
+                  Container(
+                    width: 34,
+                    height: 34,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: TaqwaColors.gold),
+                      color: const Color(0xFF211A0D),
+                    ),
+                    child: const Icon(
+                      Icons.menu_book,
+                      color: TaqwaColors.goldLight,
+                      size: 16,
+                    ),
+                  ),
+                  const SizedBox(width: 9),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Eyebrow('QURAN'),
+                        Text(
+                          '114 Suren lesen',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(
+                    Icons.chevron_right,
+                    size: 18,
+                    color: TaqwaColors.goldLight,
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
       ],
@@ -1187,6 +1251,8 @@ class _FamilyScreenState extends State<FamilyScreen> {
           ),
         ],
         const SizedBox(height: 12),
+        PartnerSection(controller: c),
+        const SizedBox(height: 12),
         const TaqwaCard(
           child: Row(
             children: [
@@ -1310,10 +1376,43 @@ class _FamilyRow extends StatelessWidget {
               '$done/5',
               style: const TextStyle(fontSize: 8, color: TaqwaColors.muted),
             ),
+            IconButton(
+              tooltip: 'Mitglied löschen',
+              onPressed: () => _confirmDelete(context),
+              icon: const Icon(Icons.delete_outline, size: 15),
+              color: TaqwaColors.muted,
+              visualDensity: VisualDensity.compact,
+              constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+              padding: EdgeInsets.zero,
+            ),
           ],
         ),
       ),
     );
+  }
+
+  Future<void> _confirmDelete(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: TaqwaColors.card,
+        title: const Text('Mitglied löschen?', style: TextStyle(fontSize: 15)),
+        content: Text(
+          '${member.name} und alle gespeicherten Gebete dieses Profils werden entfernt.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Abbrechen'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: const Text('Löschen'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) await controller.removeFamilyMember(member.id);
   }
 }
 

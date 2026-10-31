@@ -49,6 +49,8 @@ class AppSettings {
     required this.lastCompletedDay,
     required this.calculationMethod,
     required this.hanafi,
+    this.profileId = '',
+    this.onboarded = false,
   });
 
   final String name;
@@ -60,6 +62,8 @@ class AppSettings {
   final String? lastCompletedDay;
   final String calculationMethod;
   final bool hanafi;
+  final String profileId;
+  final bool onboarded;
 
   AppSettings copyWith({
     String? name,
@@ -71,6 +75,8 @@ class AppSettings {
     String? lastCompletedDay,
     String? calculationMethod,
     bool? hanafi,
+    String? profileId,
+    bool? onboarded,
   }) => AppSettings(
     name: name ?? this.name,
     xp: xp ?? this.xp,
@@ -81,6 +87,8 @@ class AppSettings {
     lastCompletedDay: lastCompletedDay ?? this.lastCompletedDay,
     calculationMethod: calculationMethod ?? this.calculationMethod,
     hanafi: hanafi ?? this.hanafi,
+    profileId: profileId ?? this.profileId,
+    onboarded: onboarded ?? this.onboarded,
   );
 }
 
@@ -173,5 +181,17 @@ double distanceToKaaba(double latitude, double longitude) {
           math.sin(deltaLon / 2) *
           math.sin(deltaLon / 2);
   return earthRadius * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
+}
+
+
+const _profileAlphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+
+/// Erzeugt einen kurzen, eindeutigen Kopplungscode (z. B. "K7QF2M").
+String generateProfileCode([math.Random? random]) {
+  final rnd = random ?? math.Random.secure();
+  return List.generate(
+    6,
+    (_) => _profileAlphabet[rnd.nextInt(_profileAlphabet.length)],
+  ).join();
 }
 

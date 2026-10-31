@@ -1,0 +1,244 @@
+{
+  "hadiths": [
+    {
+      "id": 1,
+      "text": "Die Taten werden nach den Absichten beurteilt, und jedem Menschen wird das zuteil, was er beabsichtigt hat.",
+      "source": "Sahih al-Buchari 1, Sahih Muslim 1907",
+      "topic": "Absicht"
+    },
+    {
+      "id": 2,
+      "text": "Der Islam ist auf fünf Säulen gebaut: dem Bekenntnis, dass es keinen Gott außer Allah gibt und Muhammad sein Gesandter ist, dem Gebet, der Zakat, dem Fasten im Ramadan und der Pilgerfahrt.",
+      "source": "Sahih al-Buchari 8, Sahih Muslim 16",
+      "topic": "Säulen des Islam"
+    },
+    {
+      "id": 3,
+      "text": "Das erste, wofür der Diener am Tag der Auferstehung zur Rechenschaft gezogen wird, ist das Gebet.",
+      "source": "Sunan at-Tirmidhi 413",
+      "topic": "Gebet"
+    },
+    {
+      "id": 4,
+      "text": "Fünf Gebete hat Allah den Dienern zur Pflicht gemacht. Wer sie vollständig und aufrichtig verrichtet, dem verspricht Allah das Paradies.",
+      "source": "Sunan Abi Dawud 1420",
+      "topic": "Gebet"
+    },
+    {
+      "id": 5,
+      "text": "Zwischen einem Menschen und dem Unglauben steht das Unterlassen des Gebets.",
+      "source": "Sahih Muslim 82",
+      "topic": "Gebet"
+    },
+    {
+      "id": 6,
+      "text": "Betet so, wie ihr mich beten gesehen habt.",
+      "source": "Sahih al-Buchari 631",
+      "topic": "Gebet"
+    },
+    {
+      "id": 7,
+      "text": "Die Tat, die Allah am meisten liebt, ist das Gebet zur rechten Zeit.",
+      "source": "Sahih al-Buchari 527",
+      "topic": "Gebet"
+    },
+    {
+      "id": 8,
+      "text": "Wer die Morgen- und Abendgebete in Gemeinschaft verrichtet, der ist unter dem Schutz Allahs.",
+      "source": "Sahih Muslim 657",
+      "topic": "Gemeinschaftsgebet"
+    },
+    {
+      "id": 9,
+      "text": "Der Schlüssel zum Paradies ist das Gebet, und der Schlüssel zum Gebet ist die rituelle Reinheit.",
+      "source": "Musnad Ahmad 22695",
+      "topic": "Reinheit"
+    },
+    {
+      "id": 10,
+      "text": "Sagt oft: 'Subhanallah, Alhamdulillah, La ilaha illallah und Allahu akbar.' Diese Worte sind teuer für euch und werden im Himmel geehrt.",
+      "source": "Sahih Muslim 2694",
+      "topic": "Dhikr"
+    },
+    {
+      "id": 11,
+      "text": "Der beste unter euch ist derjenige, der den Quran lernt und lehrt.",
+      "source": "Sahih al-Buchari 5027",
+      "topic": "Quran"
+    },
+    {
+      "id": 12,
+      "text": "Wer einen Buchstaben aus dem Buch Allahs liest, erhält dafür eine gute Tat, und eine gute Tat zählt zehnfach.",
+      "source": "Sunan at-Tirmidhi 2910",
+      "topic": "Quran"
+    },
+    {
+      "id": 13,
+      "text": "Der Quran ist ein Fürsprecher für seine Gefährten am Tag der Auferstehung.",
+      "source": "Sahih Muslim 804",
+      "topic": "Quran"
+    },
+    {
+      "id": 14,
+      "text": "Rezitiert den Quran, solange eure Herzen im Einklang sind; wenn ihr uneinig werdet, steht auf und trennt euch.",
+      "source": "Sahih al-Buchari 5060",
+      "topic": "Quran"
+    },
+    {
+      "id": 15,
+      "text": "Die Reinheit ist die Hälfte des Glaubens, und 'Alhamdulillah' füllt die Waage.",
+      "source": "Sahih Muslim 223",
+      "topic": "Reinheit"
+    },
+    {
+      "id": 16,
+      "text": "Wer an Allah und den Jüngsten Tag glaubt, soll Gutes sprechen oder schweigen.",
+      "source": "Sahih al-Buchari 6018, Sahih Muslim 47",
+      "topic": "Charakter"
+    },
+    {
+      "id": 17,
+      "text": "Keiner von euch glaubt wirklich, bis er für seinen Bruder das wünscht, was er für sich selbst wünscht.",
+      "source": "Sahih al-Buchari 13, Sahih Muslim 45",
+      "topic": "Nächstenliebe"
+    },
+    {
+      "id": 18,
+      "text": "Der Starke ist nicht der, der im Ringen siegt, sondern der, der sich im Zorn beherrscht.",
+      "source": "Sahih al-Buchari 6114, Sahih Muslim 2609",
+      "topic": "Charakter"
+    },
+    {
+      "id": 19,
+      "text": "Allah schaut nicht auf euer Aussehen und euren Besitz, sondern auf eure Herzen und eure Taten.",
+      "source": "Sahih Muslim 2564",
+      "topic": "Herz"
+    },
+    {
+      "id": 20,
+      "text": "Fürchte Allah, wo immer du bist, lasse auf eine schlechte Tat eine gute folgen, und begegne den Menschen mit gutem Benehmen.",
+      "source": "Sunan at-Tirmidhi 1987",
+      "topic": "Charakter"
+    },
+    {
+      "id": 21,
+      "text": "Der Gläubige ist für den Gläubigen wie ein Bauwerk: Seine Teile stützen einander.",
+      "source": "Sahih al-Buchari 481, Sahih Muslim 2585",
+      "topic": "Gemeinschaft"
+    },
+    {
+      "id": 22,
+      "text": "Wer einem Gläubigen eine Sorge nimmt, dem nimmt Allah eine Sorge am Tag der Auferstehung.",
+      "source": "Sahih Muslim 2699",
+      "topic": "Barmherzigkeit"
+    },
+    {
+      "id": 23,
+      "text": "Die Barmherzigen erhalten Barmherzigkeit vom Allerbarmer. Seid barmherzig zu denen auf Erden, so ist der im Himmel barmherzig zu euch.",
+      "source": "Sunan at-Tirmidhi 1924",
+      "topic": "Barmherzigkeit"
+    },
+    {
+      "id": 24,
+      "text": "Ein Muslim ist derjenige, dessen Zunge und Hand die anderen Muslime nicht verletzen.",
+      "source": "Sahih al-Buchari 10",
+      "topic": "Charakter"
+    },
+    {
+      "id": 25,
+      "text": "Das Lächeln ins Gesicht deines Bruders ist eine Spende.",
+      "source": "Sunan at-Tirmidhi 1956",
+      "topic": "Nächstenliebe"
+    },
+    {
+      "id": 26,
+      "text": "Wer ein Fasten freiwillig bricht, hat keine Sünde begangen, sondern nur eine Belohnung verloren.",
+      "source": "Sunan at-Tirmidhi 732",
+      "topic": "Fasten"
+    },
+    {
+      "id": 27,
+      "text": "Das Fasten ist ein Schutz. Wenn einer von euch fastet, soll er keine schlechten Worte sprechen und keinen Lärm machen.",
+      "source": "Sahih al-Buchari 1894",
+      "topic": "Fasten"
+    },
+    {
+      "id": 28,
+      "text": "Es gibt im Paradies ein Tor namens 'Ar-Rayyan', durch das nur die Fastenden eintreten werden.",
+      "source": "Sahih al-Buchari 1896",
+      "topic": "Fasten"
+    },
+    {
+      "id": 29,
+      "text": "Die Nacht der Bestimmung ist in den letzten zehn Nächten des Ramadan zu suchen.",
+      "source": "Sahih al-Buchari 2020",
+      "topic": "Ramadan"
+    },
+    {
+      "id": 30,
+      "text": "Wer den Ramadan aus Glauben und mit Hoffnung auf Belohnung fastet, dem werden seine vergangenen Sünden vergeben.",
+      "source": "Sahih al-Buchari 38",
+      "topic": "Ramadan"
+    },
+    {
+      "id": 31,
+      "text": "Die Zakat ist ein Recht der Armen am Vermögen der Reichen. Wer sie verweigert, dem wird am Tag der Auferstehung Rechenschaft abverlangt.",
+      "source": "Sahih al-Buchari 1400",
+      "topic": "Zakat"
+    },
+    {
+      "id": 32,
+      "text": "Die obere Hand ist besser als die untere: die gebende Hand ist besser als die nehmende.",
+      "source": "Sahih al-Buchari 1429",
+      "topic": "Spende"
+    },
+    {
+      "id": 33,
+      "text": "Die Pilgerfahrt, die ohne Verfehlung vollzogen wird, hat keine andere Belohnung als das Paradies.",
+      "source": "Sahih al-Buchari 1773",
+      "topic": "Hadsch"
+    },
+    {
+      "id": 34,
+      "text": "Nehmt die Riten von mir, denn ich weiß nicht, ob ich nach diesem Jahr noch einmal pilgern werde.",
+      "source": "Sahih Muslim 1297",
+      "topic": "Hadsch"
+    },
+    {
+      "id": 35,
+      "text": "Der beste Dhikr ist 'La ilaha illallah', und die beste Bitte ist 'Alhamdulillah'.",
+      "source": "Sunan at-Tirmidhi 3383",
+      "topic": "Dhikr"
+    },
+    {
+      "id": 36,
+      "text": "Wer morgens und abends 'Subhanallahi wa bihamdihi' hundertmal sagt, dem werden seine Sünden vergeben, und niemand kann mehr Taten bringen an jenem Tag.",
+      "source": "Sahih Muslim 2691",
+      "topic": "Dhikr"
+    },
+    {
+      "id": 37,
+      "text": "Betet in der Nacht, denn das Nachtgebet war die Gewohnheit der Rechtschaffenen vor euch.",
+      "source": "Sunan at-Tirmidhi 3549",
+      "topic": "Nachtgebet"
+    },
+    {
+      "id": 38,
+      "text": "Der Gläubige, der den Quran im Herzen trägt, gleicht einer duftenden Zitrone: Ihr Duft ist schön und ihr Geschmack ist süß.",
+      "source": "Sahih al-Buchari 5027",
+      "topic": "Quran"
+    },
+    {
+      "id": 39,
+      "text": "Allah vergibt der gesamten Menschheit, wenn nur die Menschen aufhören würden, einander zu unterdrücken.",
+      "source": "Sahih Muslim 2585",
+      "topic": "Gerechtigkeit"
+    },
+    {
+      "id": 40,
+      "text": "Der Gläubige, der mit den Menschen Umgang hat und ihr Unrecht geduldig erträgt, hat eine größere Belohnung als der, der sich absondert.",
+      "source": "Sunan at-Tirmidhi 2507",
+      "topic": "Geduld"
+    }
+  ]
+}
