@@ -4,9 +4,9 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hijri/hijri_calendar.dart';
-import 'package:intl/intl.dart';
 
 import 'app_controller.dart';
+import 'app_info.dart';
 import 'domain.dart';
 import 'hadith_screen.dart';
 import 'info_screens.dart';
@@ -153,12 +153,13 @@ class GoldCelebration extends StatefulWidget {
 
 class _GoldCelebrationState extends State<GoldCelebration>
     with SingleTickerProviderStateMixin {
-  late final AnimationController _controller = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 2400),
-  )..addStatusListener((status) {
-      if (status == AnimationStatus.completed) widget.onDone();
-    });
+  late final AnimationController _controller =
+      AnimationController(
+        vsync: this,
+        duration: const Duration(milliseconds: 2400),
+      )..addStatusListener((status) {
+        if (status == AnimationStatus.completed) widget.onDone();
+      });
 
   @override
   void initState() {
@@ -178,7 +179,9 @@ class _GoldCelebrationState extends State<GoldCelebration>
       animation: _controller,
       builder: (context, _) {
         final t = _controller.value;
-        final appear = Curves.easeOutCubic.transform((t / 0.25).clamp(0.0, 1.0));
+        final appear = Curves.easeOutCubic.transform(
+          (t / 0.25).clamp(0.0, 1.0),
+        );
         final fade = t < 0.78 ? 1.0 : 1 - ((t - 0.78) / 0.22);
         final rise = Curves.easeOutCubic.transform(
           ((t - 0.55) / 0.45).clamp(0.0, 1.0),
@@ -208,10 +211,7 @@ class _GoldCelebrationState extends State<GoldCelebration>
                           gradient: const LinearGradient(
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
-                            colors: [
-                              TaqwaColors.goldLight,
-                              TaqwaColors.gold,
-                            ],
+                            colors: [TaqwaColors.goldLight, TaqwaColors.gold],
                           ),
                           boxShadow: const [
                             BoxShadow(
@@ -278,7 +278,7 @@ class RamadanCountdownCard extends StatelessWidget {
     final start = nextRamadanStart(now);
     final today = DateTime(now.year, now.month, now.day);
     final days = start.difference(today).inDays;
-    final dateLabel = DateFormat('d. MMMM yyyy', 'de_DE').format(start);
+    final dateLabel = formatDate(context, 'd. MMMM yyyy', start);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 12),
@@ -344,10 +344,7 @@ class RamadanCountdownCard extends StatelessWidget {
                   running
                       ? 'Möge Allah dein Fasten annehmen.'
                       : 'Beginn: $dateLabel',
-                  style: const TextStyle(
-                    color: TaqwaColors.muted,
-                    fontSize: 9,
-                  ),
+                  style: const TextStyle(color: TaqwaColors.muted, fontSize: 9),
                 ),
               ],
             ),
@@ -395,18 +392,29 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  Timer? _timer;
+  Timer? _dayTimer;
+  String _day = '';
+
   @override
   void initState() {
     super.initState();
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted) setState(() {});
+    _day = dayKey(widget.controller.now);
+    // Nur einmal pro Minute prüfen, ob ein neuer Tag begonnen hat. Die
+    // Sekundenanzeige lebt in [NextPrayerPanel] und rebuildet nicht die
+    // gesamte Startseite.
+    _dayTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+      if (!mounted) return;
+      final today = dayKey(widget.controller.now);
+      if (today != _day) {
+        _day = today;
+        setState(() {});
+      }
     });
   }
 
   @override
   void dispose() {
-    _timer?.cancel();
+    _dayTimer?.cancel();
     super.dispose();
   }
 
@@ -415,22 +423,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final c = widget.controller;
     final settings = c.settings!;
     final date = c.now;
-    final hijri = HijriCalendar.now().toFormat('dd MMMM yyyy');
-    final prayer = c.nextPrayer;
-    final upcomingTomorrow = prayer == null
-        ? PrayerSchedule.calculate(
-            date: date.add(const Duration(days: 1)),
-            latitude: settings.latitude,
-            longitude: settings.longitude,
-            method: settings.calculationMethod,
-            hanafi: settings.hanafi,
-          )
-        : null;
-    final next = prayer ?? Prayer.fajr;
-    final target = prayer == null
-        ? upcomingTomorrow!.times[Prayer.fajr]!
-        : c.schedule!.times[next]!;
-    final remaining = target.difference(date);
+    final hijri = HijriCalendar.fromDate(date).toFormat('dd MMMM yyyy');
     final lv = levelForXp(settings.xp);
     final text = AppText.of(Localizations.localeOf(context).languageCode);
     return ListView(
@@ -518,7 +511,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   const SizedBox(width: 4),
                   Expanded(
                     child: Text(
-                      '${settings.locationName} · ${DateFormat('EEE, d. MMM', 'de_DE').format(date)}',
+                      '${settings.locationName} · ${formatDate(context, 'EEE, d. MMM', date)}',
                       style: const TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.w600,
@@ -535,67 +528,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ],
               ),
               const SizedBox(height: 9),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 11,
-                  vertical: 10,
-                ),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF211A10),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Eyebrow(
-                            'Nächstes Gebet',
-                            color: TaqwaColors.gold,
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            prayerNames[next]!,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w700,
-                              color: TaqwaColors.goldLight,
-                              fontSize: 16,
-                            ),
-                          ),
-                          Text(
-                            'Heute · ${formatClock(target)}',
-                            style: const TextStyle(
-                              color: TaqwaColors.muted,
-                              fontSize: 9,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          _duration(remaining),
-                          style: const TextStyle(
-                            color: TaqwaColors.goldLight,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 15,
-                          ),
-                        ),
-                        const Text(
-                          'verbleibend',
-                          style: TextStyle(
-                            color: TaqwaColors.muted,
-                            fontSize: 8,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
+              NextPrayerPanel(controller: c),
               const SizedBox(height: 10),
               const SectionTitle('Gebete heute'),
               Row(
@@ -792,6 +725,131 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 }
 
+/// Nächstes Gebet mit laufendem Countdown.
+///
+/// Der Sekundentakt lebt bewusst nur in diesem Widget, damit beim Ticken
+/// nicht die komplette Startseite (inklusive Quran-Karten und Listen) neu
+/// gebaut wird.
+class NextPrayerPanel extends StatefulWidget {
+  const NextPrayerPanel({super.key, required this.controller});
+  final TaqwaController controller;
+
+  @override
+  State<NextPrayerPanel> createState() => _NextPrayerPanelState();
+}
+
+class _NextPrayerPanelState extends State<NextPrayerPanel> {
+  Timer? _timer;
+  PrayerSchedule? _schedule;
+  String _scheduleKey = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  /// Gebetszeiten des aktuellen Tages – nur neu berechnet, wenn sich Tag
+  /// oder Standort/Methode ändern.
+  PrayerSchedule _todaySchedule(TaqwaController c, DateTime now) {
+    final settings = c.settings!;
+    final key =
+        '${dayKey(now)}|${settings.latitude}|${settings.longitude}|'
+        '${settings.calculationMethod}|${settings.hanafi}';
+    if (_schedule == null || key != _scheduleKey) {
+      _scheduleKey = key;
+      _schedule = PrayerSchedule.calculate(
+        date: now,
+        latitude: settings.latitude,
+        longitude: settings.longitude,
+        method: settings.calculationMethod,
+        hanafi: settings.hanafi,
+      );
+    }
+    return _schedule!;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final c = widget.controller;
+    final now = c.now;
+    final schedule = _todaySchedule(c, now);
+    final prayer = schedule.nextPrayer(now);
+    final next = prayer ?? Prayer.fajr;
+    final target = prayer == null
+        ? schedule.times[Prayer.fajr]!.add(const Duration(days: 1))
+        : schedule.times[next]!;
+    final remaining = target.difference(now);
+    final dayLabel = prayer == null ? 'Morgen' : 'Heute';
+    return Semantics(
+      label:
+          'Nächstes Gebet: ${prayerNames[next]}, $dayLabel um '
+          '${formatClock(target)}, noch ${_duration(remaining)}',
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 10),
+        decoration: BoxDecoration(
+          color: const Color(0xFF211A10),
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Eyebrow('Nächstes Gebet', color: TaqwaColors.gold),
+                  const SizedBox(height: 4),
+                  Text(
+                    prayerNames[next]!,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      color: TaqwaColors.goldLight,
+                      fontSize: 16,
+                    ),
+                  ),
+                  Text(
+                    '$dayLabel · ${formatClock(target)}',
+                    style: const TextStyle(
+                      color: TaqwaColors.muted,
+                      fontSize: 9,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  _duration(remaining),
+                  style: const TextStyle(
+                    color: TaqwaColors.goldLight,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 15,
+                    fontFeatures: [FontFeature.tabularFigures()],
+                  ),
+                ),
+                const Text(
+                  'verbleibend',
+                  style: TextStyle(color: TaqwaColors.muted, fontSize: 8),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 String _duration(Duration d) {
   final safe = d.isNegative ? Duration.zero : d;
   return '${safe.inHours.toString().padLeft(2, '0')}:${(safe.inMinutes % 60).toString().padLeft(2, '0')}:${(safe.inSeconds % 60).toString().padLeft(2, '0')}';
@@ -942,7 +1000,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
       8,
       (i) => DateTime(first.year, first.month, first.day + i),
     );
-    final monthLabel = DateFormat('MMMM yyyy', 'de_DE').format(date);
+    final monthLabel = formatDate(context, 'MMMM yyyy', date);
     final monthProgress = c.habits.isEmpty
         ? 0.0
         : c.completedHabits / c.habits.length;
@@ -1073,7 +1131,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                         child: Column(
                           children: [
                             Text(
-                              DateFormat.E('de_DE').format(d),
+                              formatDate(context, 'E', d),
                               style: const TextStyle(
                                 color: TaqwaColors.muted,
                                 fontSize: 8,
@@ -1665,10 +1723,7 @@ class ProfileScreen extends StatelessWidget {
           TaqwaCard(
             child: Column(
               children: [
-                ProfileQrCard(
-                  snapshot: controller.profileSnapshot,
-                  size: 150,
-                ),
+                ProfileQrCard(snapshot: controller.profileSnapshot, size: 150),
                 const SizedBox(height: 4),
                 const Text(
                   'Zeige diesen Code deinem Familienmitglied – ein Scan '
@@ -1729,17 +1784,17 @@ class ProfileScreen extends StatelessWidget {
             icon: Icons.help_outline,
             title: 'Hilfe & Support',
             subtitle: 'FAQ und Kontakt zum Entwickler',
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(builder: (_) => const FaqScreen()),
-            ),
+            onTap: () => Navigator.of(
+              context,
+            ).push(MaterialPageRoute<void>(builder: (_) => const FaqScreen())),
           ),
           _SettingsTile(
             icon: Icons.info_outline,
             title: 'Über TAQWA TRACK',
-            subtitle: 'Version 1.4.0 · Offline-First',
+            subtitle: 'Version $appVersion · Offline-First',
             onTap: () => _message(
               context,
-              'TAQWA TRACK · Version 1.4.0\nOffline-Gebets-, Habit- und '
+              'TAQWA TRACK · Version $appVersion\nOffline-Gebets-, Habit- und '
               'Familien-Tracker.\nKontakt: $supportEmail',
             ),
           ),
@@ -1832,11 +1887,12 @@ class SettingsScreen extends StatelessWidget {
                   if (settings.adhanEnabled)
                     DropdownButtonFormField<int>(
                       initialValue: settings.adhanMinutesBefore,
-                      decoration: const InputDecoration(
-                        labelText: 'Erinnern',
-                      ),
+                      decoration: const InputDecoration(labelText: 'Erinnern'),
                       items: const [
-                        DropdownMenuItem(value: 0, child: Text('Zur Gebetszeit')),
+                        DropdownMenuItem(
+                          value: 0,
+                          child: Text('Zur Gebetszeit'),
+                        ),
                         DropdownMenuItem(
                           value: 5,
                           child: Text('5 Minuten vorher'),

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:intl/date_symbol_data_local.dart';
+import 'package:intl/intl.dart';
 
 /// Eine auswählbare Sprache. Die nativen Namen erscheinen in der Auswahl.
 class AppLanguage {
@@ -248,7 +250,8 @@ class AppText {
       nameHint: 'آپ کا نام',
       languageLabel: 'زبان',
       start: 'شروع کریں',
-      privacyNote: 'شروع کرنے سے آپ مانتے ہیں کہ تمام ڈیٹا صرف مقامی طور پر محفوظ ہوگا۔',
+      privacyNote:
+          'شروع کرنے سے آپ مانتے ہیں کہ تمام ڈیٹا صرف مقامی طور پر محفوظ ہوگا۔',
       navHome: 'ہوم',
       navCalendar: 'کیلنڈر',
       navFamily: 'خاندان',
@@ -276,4 +279,53 @@ class AppText {
       greeting: 'Assalamu alaikum',
     ),
   };
+}
+
+/// Lädt die Datumsdaten für alle unterstützten Sprachen. Wird einmalig beim
+/// Start aufgerufen, damit Datumsangaben überall in der App in der gewählten
+/// Sprache erscheinen.
+Future<void> initializeAppDateFormats() => initializeDateFormatting();
+
+const _intlLocales = <String, String>{
+  'de': 'de_DE',
+  'en': 'en_US',
+  'ar': 'ar_EG',
+  'fr': 'fr_FR',
+  'tr': 'tr_TR',
+  'es': 'es_ES',
+  'it': 'it_IT',
+  'pt': 'pt_PT',
+  'nl': 'nl_NL',
+  'ru': 'ru_RU',
+  'ur': 'ur_PK',
+  'id': 'id_ID',
+  'ms': 'ms_MY',
+  'bn': 'bn_BD',
+  'fa': 'fa_IR',
+  'hi': 'hi_IN',
+  'zh': 'zh_CN',
+  'ja': 'ja_JP',
+  'ko': 'ko_KR',
+  'pl': 'pl_PL',
+  'uk': 'uk_UA',
+  'sv': 'sv_SE',
+  'sq': 'sq_AL',
+  'bs': 'bs_BA',
+};
+
+/// Passendes intl-Gebietsschema zu einem Sprachcode der App.
+String intlLocaleFor(String? code) => _intlLocales[code] ?? 'en_US';
+
+/// Passendes intl-Gebietsschema zur aktuell aktiven App-Sprache.
+String intlLocaleOf(BuildContext context) =>
+    intlLocaleFor(Localizations.localeOf(context).languageCode);
+
+/// Formatiert ein Datum in der aktiven Sprache. Fehlt für eine Sprache die
+/// intl-Datentabelle, wird englisch formatiert statt zu crashen.
+String formatDate(BuildContext context, String pattern, DateTime date) {
+  try {
+    return DateFormat(pattern, intlLocaleOf(context)).format(date);
+  } catch (_) {
+    return DateFormat(pattern, 'en_US').format(date);
+  }
 }

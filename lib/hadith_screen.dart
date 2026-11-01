@@ -223,7 +223,8 @@ class PrayerHadithCard extends StatelessWidget {
                   TextButton(
                     onPressed: () => Navigator.of(context).push(
                       MaterialPageRoute<void>(
-                        builder: (_) => const HadithListScreen(prayerOnly: true),
+                        builder: (_) =>
+                            const HadithListScreen(prayerOnly: true),
                       ),
                     ),
                     style: TextButton.styleFrom(
@@ -264,10 +265,7 @@ class PrayerHadithCard extends StatelessWidget {
               const SizedBox(height: 6),
               Text(
                 hadith.source,
-                style: const TextStyle(
-                  color: TaqwaColors.muted,
-                  fontSize: 8,
-                ),
+                style: const TextStyle(color: TaqwaColors.muted, fontSize: 8),
               ),
             ],
           ],
@@ -344,8 +342,7 @@ class _HadithListScreenState extends State<HadithListScreen> {
                       ),
                       const SizedBox(width: 6),
                       _FilterChip(
-                        label:
-                            'Gebet (${all.where((h) => h.isPrayer).length})',
+                        label: 'Gebet (${all.where((h) => h.isPrayer).length})',
                         selected: _prayerOnly,
                         onTap: () => setState(() => _prayerOnly = true),
                       ),
@@ -374,8 +371,7 @@ class _HadithListScreenState extends State<HadithListScreen> {
                       : ListView.separated(
                           padding: const EdgeInsets.fromLTRB(14, 10, 14, 24),
                           itemCount: visible.length,
-                          separatorBuilder: (_, _) =>
-                              const SizedBox(height: 9),
+                          separatorBuilder: (_, _) => const SizedBox(height: 9),
                           itemBuilder: (context, index) {
                             final hadith = visible[index];
                             final isToday = hadith.id == today.id;
@@ -590,9 +586,7 @@ class HadithDetailScreen extends StatelessWidget {
             OutlinedButton.icon(
               onPressed: () async {
                 await Clipboard.setData(
-                  ClipboardData(
-                    text: '„${hadith.text}“\n— ${hadith.source}',
-                  ),
+                  ClipboardData(text: '„${hadith.text}“\n— ${hadith.source}'),
                 );
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(

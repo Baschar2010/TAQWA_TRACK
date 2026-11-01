@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:intl/date_symbol_data_local.dart';
 
 import 'app_controller.dart';
 import 'data/taqwa_repository.dart';
@@ -12,7 +11,7 @@ import 'theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await initializeDateFormatting('de_DE');
+  await initializeAppDateFormats();
   await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   final controller = TaqwaController(TaqwaRepository());
   await controller.initialize();

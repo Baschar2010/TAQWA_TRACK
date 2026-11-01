@@ -19,7 +19,9 @@ Future<void> contactSupport(BuildContext context) async {
       await Clipboard.setData(const ClipboardData(text: supportEmail));
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('E-Mail-Adresse kopiert: $supportEmail')),
+          const SnackBar(
+            content: Text('E-Mail-Adresse kopiert: $supportEmail'),
+          ),
         );
       }
     }

@@ -15,8 +15,7 @@ class OnboardingScreen extends StatefulWidget {
 
 class _OnboardingScreenState extends State<OnboardingScreen> {
   final _name = TextEditingController();
-  late String _language =
-      widget.controller.settings?.language ?? 'de';
+  late String _language = widget.controller.settings?.language ?? 'de';
   bool _saving = false;
   String? _error;
 
@@ -36,10 +35,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       _saving = true;
       _error = null;
     });
-    await widget.controller.completeOnboarding(
-      name: name,
-      language: _language,
-    );
+    await widget.controller.completeOnboarding(name: name, language: _language);
   }
 
   Future<void> _pickLanguage() async {
@@ -82,10 +78,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                             gradient: const LinearGradient(
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
-                              colors: [
-                                Color(0xFF3A2A11),
-                                Color(0xFF17130C),
-                              ],
+                              colors: [Color(0xFF3A2A11), Color(0xFF17130C)],
                             ),
                             border: Border.all(
                               color: TaqwaColors.gold,
@@ -311,10 +304,7 @@ class _Feature extends StatelessWidget {
       ),
       const SizedBox(width: 9),
       Expanded(
-        child: Text(
-          text,
-          style: const TextStyle(fontSize: 10, height: 1.4),
-        ),
+        child: Text(text, style: const TextStyle(fontSize: 10, height: 1.4)),
       ),
     ],
   );

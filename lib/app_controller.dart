@@ -36,10 +36,15 @@ class TaqwaController extends ChangeNotifier {
   Map<String, Map<int, HabitStatus>> weekHabits = {};
   List<Partner> partners = [];
   List<(int, int)> bookmarks = [];
-  (int, int)? lastRead;
   DateTime selectedDate = DateTime.now();
   bool ready = false;
   String? error;
+
+  /// Leseposition im Quran. Ein eigener Notifier sorgt dafür, dass beim
+  /// Scrollen nur die „Weiterlesen“-Karte aktualisiert wird und nicht die
+  /// komplette App neu gebaut werden muss.
+  final ValueNotifier<(int, int)?> lastReadNotifier = ValueNotifier(null);
+  (int, int)? get lastRead => lastReadNotifier.value;
 
   /// Wird gesetzt, sobald heute von 5/5 auf Gold gewechselt wurde, damit die
   /// Erfolgs-Animation genau einmal läuft.
@@ -55,8 +60,7 @@ class TaqwaController extends ChangeNotifier {
   int get completedPrayers => prayers.values.where((done) => done).length;
   int get completedPrayersToday =>
       todayPrayers.values.where((done) => done).length;
-  bool get allPrayersTodayDone =>
-      completedPrayersToday == Prayer.values.length;
+  bool get allPrayersTodayDone => completedPrayersToday == Prayer.values.length;
   int get completedHabits =>
       todayHabits.values.where((s) => s == HabitStatus.done).length;
   Prayer? get nextPrayer => schedule?.nextPrayer(now);
@@ -159,7 +163,7 @@ class TaqwaController extends ChangeNotifier {
     weekHabits = await repository.habitWeek(selectedDate);
     partners = await repository.partners();
     bookmarks = await repository.quranBookmarks();
-    lastRead = await repository.quranProgress();
+    lastReadNotifier.value = await repository.quranProgress();
   }
 
   Future<PrayerAward> togglePrayer(Prayer prayer) async {
@@ -332,7 +336,8 @@ class TaqwaController extends ChangeNotifier {
     notifyListeners();
     if (snapshot.reminderAt != null) {
       await NotificationService.showNow(
-        title: 'Erinnerung von ${snapshot.name.isEmpty ? 'deinem Partner' : snapshot.name}',
+        title:
+            'Erinnerung von ${snapshot.name.isEmpty ? 'deinem Partner' : snapshot.name}',
         body: snapshot.reminderText ?? ProfileSnapshot.defaultReminder,
       );
     }
@@ -372,7 +377,7 @@ class TaqwaController extends ChangeNotifier {
   /// QR-Code übertragen und beim nächsten Scan dort angezeigt.
   Future<void> sendReminder(Partner partner) async {
     await repository.updateSettings(
-      outboxReminderAt: DateTime.now().toIso8601String(),
+      outboxReminderAt: _clock().toIso8601String(),
       outboxReminderText:
           '${settings?.name ?? 'Deine Familie'} erinnert dich ans Gebet. Möge Allah es annehmen.',
     );
@@ -394,9 +399,9 @@ class TaqwaController extends ChangeNotifier {
   // ---- Quran --------------------------------------------------------
 
   Future<void> saveLastRead(int surah, int ayah) async {
+    if (lastRead == (surah, ayah)) return;
     await repository.saveQuranProgress(surah, ayah);
-    lastRead = (surah, ayah);
-    notifyListeners();
+    lastReadNotifier.value = (surah, ayah);
   }
 
   Future<bool> toggleBookmark(int surah, int ayah) async {
@@ -487,6 +492,7 @@ class TaqwaController extends ChangeNotifier {
   @override
   void dispose() {
     linkSync.stop();
+    lastReadNotifier.dispose();
     super.dispose();
   }
 }

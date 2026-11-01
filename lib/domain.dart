@@ -250,7 +250,6 @@ double distanceToKaaba(double latitude, double longitude) {
   return earthRadius * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a));
 }
 
-
 const _profileAlphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 
 /// Erzeugt einen kurzen, eindeutigen Kopplungscode (z. B. "K7QF2M").
@@ -338,40 +337,52 @@ class ProfileSnapshot {
   ].join('|');
 
   /// Liest einen gescannten QR-Inhalt. Gibt null zurück, wenn der Inhalt
-  /// nicht zu TAQWA TRACK gehört.
+  /// nicht zu TAQWA TRACK gehört. Ungültige Codes dürfen niemals eine
+  /// Ausnahme auslösen – der Scanner darf an beliebigem Inhalt nicht crashen.
   static ProfileSnapshot? tryParse(String raw) {
-    final parts = raw.trim().split('|');
-    if (parts.length < 8 || parts[0] != prefix) return null;
-    final mask = parts[3];
-    if (mask.length != Prayer.values.length ||
-        mask.split('').any((c) => c != '0' && c != '1')) {
+    try {
+      final parts = raw.trim().split('|');
+      if (parts.length < 8 || parts[0] != prefix) return null;
+      final mask = parts[3];
+      if (mask.length != Prayer.values.length ||
+          mask.split('').any((c) => c != '0' && c != '1')) {
+        return null;
+      }
+      final code = parts[1].trim();
+      if (code.isEmpty) return null;
+      final habitsDone = int.tryParse(parts[4]) ?? 0;
+      final habitsTotal = int.tryParse(parts[5]) ?? 0;
+      final streak = int.tryParse(parts[6]) ?? 0;
+      final port = parts.length > 11 ? int.tryParse(parts[11]) : null;
+      return ProfileSnapshot(
+        code: code,
+        name: _decode(parts[2]).trim(),
+        prayerMask: mask,
+        habitsDone: habitsDone.clamp(0, habitsTotal),
+        habitsTotal: habitsTotal,
+        streak: streak,
+        day: parts[7],
+        reminderAt: parts.length > 8 && parts[8].isNotEmpty
+            ? _decode(parts[8])
+            : null,
+        reminderText: parts.length > 9 && parts[9].isNotEmpty
+            ? _decode(parts[9])
+            : null,
+        syncHost: parts.length > 10 && parts[10].isNotEmpty
+            ? parts[10].trim()
+            : null,
+        syncPort: port != null && port > 0 && port <= 65535 ? port : null,
+      );
+    } catch (_) {
       return null;
     }
-    final code = parts[1].trim();
-    if (code.isEmpty) return null;
-    final habitsDone = int.tryParse(parts[4]) ?? 0;
-    final habitsTotal = int.tryParse(parts[5]) ?? 0;
-    final streak = int.tryParse(parts[6]) ?? 0;
-    return ProfileSnapshot(
-      code: code,
-      name: Uri.decodeComponent(parts[2]).trim(),
-      prayerMask: mask,
-      habitsDone: habitsDone.clamp(0, habitsTotal),
-      habitsTotal: habitsTotal,
-      streak: streak,
-      day: parts[7],
-      reminderAt: parts.length > 8 && parts[8].isNotEmpty
-          ? Uri.decodeComponent(parts[8])
-          : null,
-      reminderText: parts.length > 9 && parts[9].isNotEmpty
-          ? Uri.decodeComponent(parts[9])
-          : null,
-      syncHost: parts.length > 10 && parts[10].isNotEmpty
-          ? parts[10].trim()
-          : null,
-      syncPort: parts.length > 11 ? int.tryParse(parts[11]) : null,
-    );
+  }
+
+  static String _decode(String value) {
+    try {
+      return Uri.decodeComponent(value);
+    } catch (_) {
+      return value;
+    }
   }
 }
-
-

@@ -178,10 +178,7 @@ class _TasbihScreenState extends State<TasbihScreen> {
                       : count >= target
                       ? 'Ziel erreicht – möge Allah es annehmen.'
                       : 'Noch ${target - count} bis zum Ziel.',
-                  style: const TextStyle(
-                    color: TaqwaColors.muted,
-                    fontSize: 9,
-                  ),
+                  style: const TextStyle(color: TaqwaColors.muted, fontSize: 9),
                 ),
               ),
               const SizedBox(height: 24),

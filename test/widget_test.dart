@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:hijri/hijri_calendar.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'package:intl/intl.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:taqwa_track/app_controller.dart';
 import 'package:taqwa_track/data/taqwa_repository.dart';
 import 'package:taqwa_track/domain.dart';
 import 'package:taqwa_track/hadith_screen.dart';
 import 'package:taqwa_track/info_screens.dart';
+import 'package:taqwa_track/language.dart';
 import 'package:taqwa_track/link_sync.dart';
 import 'package:taqwa_track/main.dart';
 import 'package:taqwa_track/onboarding_screen.dart';
@@ -19,7 +22,8 @@ import 'package:taqwa_track/theme.dart';
 /// In-Memory-Repository: hält alle Daten im Speicher, damit die Tests
 /// ohne echte SQLite-Datei und ohne Plattform-Plugins laufen.
 class _FakeRepository extends TaqwaRepository {
-  _FakeRepository({bool onboarded = true}) : super(factory: databaseFactoryFfi) {
+  _FakeRepository({bool onboarded = true})
+    : super(factory: databaseFactoryFfi) {
     settings = AppSettings(
       name: 'Hamza',
       xp: 0,
@@ -244,7 +248,7 @@ void main() {
   setUpAll(() async {
     TestWidgetsFlutterBinding.ensureInitialized();
     sqfliteFfiInit();
-    await initializeDateFormatting('de_DE');
+    await initializeDateFormatting();
   });
 
   setUp(() async {
@@ -521,8 +525,10 @@ void main() {
   testWidgets('Hadith-Bibliothek ist offline durchsuchbar', (tester) async {
     final all = await HadithLibrary.load();
     expect(all.length, greaterThanOrEqualTo(60));
-    expect(HadithLibrary.prayerOfTheDay(all, DateTime(2026, 10, 30)).isPrayer,
-        isTrue);
+    expect(
+      HadithLibrary.prayerOfTheDay(all, DateTime(2026, 10, 30)).isPrayer,
+      isTrue,
+    );
 
     await tester.pumpWidget(
       MaterialApp(theme: taqwaTheme(), home: const HadithListScreen()),
@@ -551,8 +557,10 @@ void main() {
     );
     await tester.pump();
     expect(find.text('DATENSCHUTZERKLÄRUNG'), findsOneWidget);
-    expect(find.textContaining('ausschließlich auf deinem Gerät'),
-        findsOneWidget);
+    expect(
+      find.textContaining('ausschließlich auf deinem Gerät'),
+      findsOneWidget,
+    );
 
     await tester.pumpWidget(
       MaterialApp(theme: taqwaTheme(), home: const FaqScreen()),
@@ -732,6 +740,83 @@ void main() {
     expect(old, isNotNull);
     expect(old!.syncHost, isNull);
     expect(ProfileSnapshot.tryParse('https://example.com'), isNull);
+  });
+
+  test('Fehlerhafte QR-Codes werden nie als Absturz quittiert', () {
+    const malformed = [
+      '',
+      'TT2',
+      'TT2|A|B|10101',
+      'TT1|A|B|10101|1|5|3|2026-10-30',
+      'TT2||Name|10101|1|5|3|2026-10-30',
+      'TT2|CODE|Name|111|1|5|3|2026-10-30',
+      'TT2|CODE|Name|10a01|1|5|3|2026-10-30',
+    ];
+    for (final raw in malformed) {
+      expect(
+        ProfileSnapshot.tryParse(raw),
+        isNull,
+        reason: 'Ungültiger Code wurde akzeptiert: $raw',
+      );
+    }
+    // Gültiger Code mit kaputter URL-Kodierung bleibt lesbar.
+    final tolerant = ProfileSnapshot.tryParse(
+      'TT2|CODE|M%C3%BCller|10101|1|5|3|2026-10-30|%ZZ|',
+    );
+    expect(tolerant, isNotNull);
+    expect(tolerant!.code, 'CODE');
+    expect(tolerant.name, 'Müller');
+    // Unbekannter Port wird verworfen, Host bleibt erhalten.
+    final badPort = ProfileSnapshot.tryParse(
+      'TT2|CODE|Name|10101|1|5|3|2026-10-30|||10.0.0.5|0',
+    );
+    expect(badPort?.syncHost, '10.0.0.5');
+    expect(badPort?.syncPort, isNull);
+  });
+
+  test('Datumsformate werden pro Sprache aufgelöst', () {
+    expect(intlLocaleFor('de'), 'de_DE');
+    expect(intlLocaleFor('ar'), 'ar_EG');
+    expect(intlLocaleFor(null), 'en_US');
+    expect(intlLocaleFor('unbekannt'), 'en_US');
+    expect(
+      DateFormat(
+        'd. MMMM yyyy',
+        intlLocaleFor('de'),
+      ).format(DateTime(2026, 10, 30)),
+      '30. Oktober 2026',
+    );
+  });
+
+  test('Quran-Cache hält höchstens drei Suren und lädt erneut', () async {
+    QuranLibrary.clearVerseCache();
+    final first = QuranLibrary.verses(1);
+    final again = QuranLibrary.verses(1);
+    expect(identical(first, again), isTrue);
+    final verses = await first;
+    expect(verses, isNotEmpty);
+    expect(verses.first.number, 1);
+    for (final surah in [112, 113, 114]) {
+      await QuranLibrary.verses(surah);
+    }
+    QuranLibrary.clearVerseCache();
+    final reloaded = QuranLibrary.verses(1);
+    expect(identical(first, reloaded), isFalse);
+    expect((await reloaded).length, verses.length);
+  });
+
+  test('Alle mitgelieferten Rezitationen liegen als Asset vor', () async {
+    const ayahCount = {1: 7, 112: 4, 113: 5, 114: 6};
+    for (final entry in ayahCount.entries) {
+      for (var ayah = 1; ayah <= entry.value; ayah++) {
+        final asset = 'assets/audio/${entry.key}_$ayah.mp3';
+        try {
+          await rootBundle.load(asset);
+        } catch (_) {
+          fail('Fehlendes Asset: $asset');
+        }
+      }
+    }
   });
 }
 

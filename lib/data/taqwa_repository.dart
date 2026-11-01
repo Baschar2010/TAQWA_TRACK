@@ -150,11 +150,7 @@ class TaqwaRepository {
       '100× Dhikr',
       'Dankbarkeit',
     ].indexed) {
-      await db.insert('habits', {
-        'name': name,
-        'sort_order': i,
-        'built_in': 1,
-      });
+      await db.insert('habits', {'name': name, 'sort_order': i, 'built_in': 1});
     }
     await db.execute('''CREATE TABLE habit_logs (
       day TEXT NOT NULL,
@@ -206,7 +202,11 @@ class TaqwaRepository {
     await db.insert('quran_progress', {'id': 1});
   }
 
-  Future<void> _upgradeSchema(Database db, int oldVersion, int newVersion) async {
+  Future<void> _upgradeSchema(
+    Database db,
+    int oldVersion,
+    int newVersion,
+  ) async {
     if (oldVersion < 2) {
       await db.execute(
         "ALTER TABLE settings ADD COLUMN profile_id TEXT NOT NULL DEFAULT ''",
@@ -370,9 +370,7 @@ class TaqwaRepository {
     var settings = await loadSettings();
     if (settings.profileId.isEmpty) {
       final code = generateProfileCode();
-      await db.update('settings', {
-        'profile_id': code,
-      }, where: 'id = 1');
+      await db.update('settings', {'profile_id': code}, where: 'id = 1');
       settings = await loadSettings();
     }
     return settings;
@@ -560,11 +558,7 @@ class TaqwaRepository {
 
   Future<void> removeFamilyMember(int id) async {
     final db = await database;
-    await db.delete(
-      'family_prayers',
-      where: 'member_id = ?',
-      whereArgs: [id],
-    );
+    await db.delete('family_prayers', where: 'member_id = ?', whereArgs: [id]);
     await db.delete('family_members', where: 'id = ?', whereArgs: [id]);
   }
 
@@ -661,11 +655,12 @@ class TaqwaRepository {
     return (done, total);
   }
 
-  Future<void> markReminderDelivered(int id) async =>
-      (await database).update('partners', {
-        'reminder_at': null,
-        'reminder_text': null,
-      }, where: 'id = ?', whereArgs: [id]);
+  Future<void> markReminderDelivered(int id) async => (await database).update(
+    'partners',
+    {'reminder_at': null, 'reminder_text': null},
+    where: 'id = ?',
+    whereArgs: [id],
+  );
 
   Future<void> unlinkPartner(int id) async =>
       (await database).delete('partners', where: 'id = ?', whereArgs: [id]);
@@ -675,16 +670,19 @@ class TaqwaRepository {
   /// `null` oder ein leerer Text entfernt den Spitznamen wieder.
   Future<void> setPartnerAlias(int id, String? alias) async {
     final clean = alias?.trim() ?? '';
-    await (await database).update('partners', {
-      'alias': clean.isEmpty ? null : clean,
-    }, where: 'id = ?', whereArgs: [id]);
+    await (await database).update(
+      'partners',
+      {'alias': clean.isEmpty ? null : clean},
+      where: 'id = ?',
+      whereArgs: [id],
+    );
   }
 
-  Future<List<(int, int)>> quranBookmarks() async =>
-      (await database).query('quran_bookmarks', orderBy: 'created_at DESC').then(
-        (rows) => rows
-            .map((r) => (r['surah']! as int, r['ayah']! as int))
-            .toList(),
+  Future<List<(int, int)>> quranBookmarks() async => (await database)
+      .query('quran_bookmarks', orderBy: 'created_at DESC')
+      .then(
+        (rows) =>
+            rows.map((r) => (r['surah']! as int, r['ayah']! as int)).toList(),
       );
 
   Future<bool> toggleQuranBookmark(int surah, int ayah) async {
@@ -711,7 +709,10 @@ class TaqwaRepository {
   }
 
   Future<(int, int)?> quranProgress() async {
-    final rows = await (await database).query('quran_progress', where: 'id = 1');
+    final rows = await (await database).query(
+      'quran_progress',
+      where: 'id = 1',
+    );
     if (rows.isEmpty) return null;
     return (rows.single['surah']! as int, rows.single['ayah']! as int);
   }

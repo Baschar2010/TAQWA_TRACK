@@ -1,4 +1,4 @@
-﻿import 'dart:io' show Platform;
+import 'dart:io' show Platform;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -9,13 +9,14 @@ import 'package:timezone/timezone.dart' as tz;
 import 'domain.dart';
 
 /// Lokale Benachrichtigungen: Gebets-Erinnerungen (optional mit Adhan-Ton)
-/// und Hinweise von verknÃ¼pften Familienmitgliedern.
+/// und Hinweise von verknüpften Familienmitgliedern.
 class NotificationService {
   NotificationService._();
 
   static final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
   static bool _initialized = false;
+  static Future<void>? _initializing;
 
   static const _channelId = 'prayer_reminders';
   static const _adhanChannelId = 'prayer_adhan';
@@ -23,45 +24,56 @@ class NotificationService {
   static bool get _supported =>
       !kIsWeb && (Platform.isAndroid || Platform.isIOS);
 
-  static Future<void> initialize() async {
-    if (_initialized) return;
-    _initialized = true;
-    if (!_supported) return;
-    tzdata.initializeTimeZones();
+  /// Initialisiert das Plugin genau einmal – auch bei parallelen Aufrufen.
+  static Future<void> initialize() {
+    if (_initialized) return Future<void>.value();
+    return _initializing ??= _initialize();
+  }
+
+  static Future<void> _initialize() async {
     try {
-      final info = await FlutterTimezone.getLocalTimezone();
-      tz.setLocalLocation(tz.getLocation(info.identifier));
+      if (!_supported) return;
+      tzdata.initializeTimeZones();
+      try {
+        final info = await FlutterTimezone.getLocalTimezone();
+        tz.setLocalLocation(tz.getLocation(info.identifier));
+      } catch (error) {
+        debugPrint('Zeitzone konnte nicht geladen werden: $error');
+      }
+      final android = _plugin
+          .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin
+          >();
+      await _plugin.initialize(
+        settings: const InitializationSettings(
+          android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+        ),
+      );
+      await android?.createNotificationChannel(
+        const AndroidNotificationChannel(
+          _channelId,
+          'Gebets-Erinnerungen',
+          description: 'Erinnerungen vor den fünf Gebetszeiten',
+          importance: Importance.high,
+        ),
+      );
+      await android?.createNotificationChannel(
+        const AndroidNotificationChannel(
+          _adhanChannelId,
+          'Gebets-Erinnerungen mit Signalton',
+          description: 'Erinnerungen mit Glockenton',
+          importance: Importance.high,
+          sound: RawResourceAndroidNotificationSound('adhan'),
+          playSound: true,
+        ),
+      );
     } catch (error) {
-      debugPrint('Zeitzone konnte nicht geladen werden: $error');
+      debugPrint(
+        'Benachrichtigungen konnten nicht initialisiert werden: $error',
+      );
+    } finally {
+      _initialized = true;
     }
-    final android = _plugin
-        .resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin
-        >();
-    await _plugin.initialize(
-      settings: const InitializationSettings(
-        android: AndroidInitializationSettings('@mipmap/ic_launcher'),
-      ),
-    );
-    await android?.createNotificationChannel(
-      const AndroidNotificationChannel(
-        _channelId,
-        'Gebets-Erinnerungen',
-        description: 'Erinnerungen vor den fÃ¼nf Gebetszeiten',
-        importance: Importance.high,
-      ),
-    );
-    await android?.createNotificationChannel(
-      const AndroidNotificationChannel(
-        _adhanChannelId,
-        'Gebets-Erinnerungen mit Signalton',
-        description: 'Erinnerungen mit Glockenton',
-        importance: Importance.high,
-        sound: RawResourceAndroidNotificationSound('adhan'),
-        playSound: true,
-      ),
-    );
-    _initialized = true;
   }
 
   static Future<void> requestPermissions() async {
@@ -96,7 +108,7 @@ class NotificationService {
       android: AndroidNotificationDetails(
         _channelId,
         'Gebets-Erinnerungen',
-        channelDescription: 'Erinnerungen vor den fÃ¼nf Gebetszeiten',
+        channelDescription: 'Erinnerungen vor den fünf Gebetszeiten',
         importance: Importance.high,
         priority: Priority.high,
         category: AndroidNotificationCategory.reminder,
@@ -104,7 +116,7 @@ class NotificationService {
     );
   }
 
-  /// Plant tÃ¤gliche Erinnerungen fÃ¼r die fÃ¼nf Gebete.
+  /// Plant tägliche Erinnerungen für die fünf Gebete.
   static Future<void> schedulePrayerReminders({
     required PrayerSchedule schedule,
     required int minutesBefore,
@@ -122,10 +134,11 @@ class NotificationService {
       await _plugin.zonedSchedule(
         id: prayer.index + 1,
         title: switch (minutesBefore) {
-          0 => '${prayerNames[prayer]} â€“ Zeit fÃ¼rs Gebet',
+          0 => '${prayerNames[prayer]} – Zeit fürs Gebet',
           _ => '${prayerNames[prayer]} in $minutesBefore Minuten',
         },
-        body: '${prayerNames[prayer]} beginnt um ${formatClock(schedule.times[prayer]!)}. MÃ¶ge Allah dein Gebet annehmen.',
+        body:
+            '${prayerNames[prayer]} beginnt um ${formatClock(schedule.times[prayer]!)}. Möge Allah dein Gebet annehmen.',
         scheduledDate: tz.TZDateTime.from(when, tz.local),
         notificationDetails: _details(withAdhan: withAdhan),
         androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,

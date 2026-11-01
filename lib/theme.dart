@@ -32,9 +32,7 @@ ThemeData taqwaTheme({bool oled = false}) => ThemeData(
   useMaterial3: true,
   fontFamily: 'Roboto',
   appBarTheme: AppBarTheme(
-    backgroundColor: oled
-        ? TaqwaColors.oledBackground
-        : TaqwaColors.background,
+    backgroundColor: oled ? TaqwaColors.oledBackground : TaqwaColors.background,
     foregroundColor: TaqwaColors.text,
     elevation: 0,
   ),
@@ -192,10 +190,19 @@ class AppHeader extends StatelessWidget {
           border: Border.all(color: TaqwaColors.gold),
           color: const Color(0xFF1B160D),
         ),
-        child: const Icon(
-          Icons.nightlight_round,
-          color: TaqwaColors.goldLight,
-          size: 16,
+        child: ClipOval(
+          child: Image.asset(
+            'assets/branding/logo.png',
+            width: 30,
+            height: 30,
+            fit: BoxFit.cover,
+            filterQuality: FilterQuality.medium,
+            errorBuilder: (_, _, _) => const Icon(
+              Icons.nightlight_round,
+              color: TaqwaColors.goldLight,
+              size: 16,
+            ),
+          ),
         ),
       ),
       const SizedBox(width: 8),

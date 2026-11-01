@@ -4,11 +4,11 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hijri/hijri_calendar.dart' show HijriCalendar;
-import 'package:intl/intl.dart' show DateFormat;
 
 import 'app_controller.dart';
 import 'domain.dart';
 import 'hadith_screen.dart';
+import 'language.dart';
 import 'screens.dart';
 import 'theme.dart';
 
@@ -25,11 +25,16 @@ class PrayerTimesScreen extends StatefulWidget {
 
 class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
   Timer? _timer;
+  PrayerSchedule? _schedule;
+  String _scheduleKey = '';
 
   @override
   void initState() {
     super.initState();
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+    // Einmal pro Minute reicht: Nächstes Gebet, Datum und Hervorhebung
+    // wechseln nicht im Sekundentakt. Der sichtbare Countdown tickt in
+    // [_NextPrayerBar] und rebuildet nicht die ganze Seite.
+    _timer = Timer.periodic(const Duration(minutes: 1), (_) {
       if (mounted) setState(() {});
     });
   }
@@ -40,18 +45,31 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
     super.dispose();
   }
 
+  /// Gebetszeiten des Tages – nur neu berechnet, wenn Tag, Standort oder
+  /// Berechnungsmethode sich ändern.
+  PrayerSchedule _scheduleFor(AppSettings settings, DateTime day) {
+    final key =
+        '${dayKey(day)}|${settings.latitude}|${settings.longitude}|'
+        '${settings.calculationMethod}|${settings.hanafi}';
+    if (_schedule == null || key != _scheduleKey) {
+      _scheduleKey = key;
+      _schedule = PrayerSchedule.calculate(
+        date: day,
+        latitude: settings.latitude,
+        longitude: settings.longitude,
+        method: settings.calculationMethod,
+        hanafi: settings.hanafi,
+      );
+    }
+    return _schedule!;
+  }
+
   @override
   Widget build(BuildContext context) {
     final c = widget.controller;
     final settings = c.settings!;
     final now = c.now;
-    final schedule = PrayerSchedule.calculate(
-      date: now,
-      latitude: settings.latitude,
-      longitude: settings.longitude,
-      method: settings.calculationMethod,
-      hanafi: settings.hanafi,
-    );
+    final schedule = _scheduleFor(settings, now);
     final next = schedule.nextPrayer(now);
 
     final entries = <_TimeEntry>[
@@ -98,11 +116,6 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
         prayer: Prayer.isha,
       ),
     ];
-
-    final nextTime = next == null
-        ? schedule.times[Prayer.fajr]!.add(const Duration(days: 1))
-        : schedule.times[next]!;
-    final remaining = nextTime.difference(now);
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(14, 10, 14, 92),
@@ -159,7 +172,8 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
                   const SizedBox(width: 4),
                   Expanded(
                     child: Text(
-                      '${settings.locationName} · ${DateFormat('EEE, d. MMM yyyy', 'de_DE').format(now)}',
+                      '${settings.locationName} · '
+                      '${formatDate(context, 'EEE, d. MMM yyyy', now)}',
                       style: const TextStyle(
                         color: TaqwaColors.muted,
                         fontSize: 9,
@@ -167,7 +181,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
                     ),
                   ),
                   Text(
-                    HijriCalendar.now().toFormat('dd MMMM yyyy'),
+                    HijriCalendar.fromDate(now).toFormat('dd MMMM yyyy'),
                     style: const TextStyle(
                       color: TaqwaColors.muted,
                       fontSize: 8,
@@ -176,42 +190,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
                 ],
               ),
               const SizedBox(height: 11),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 11,
-                  vertical: 9,
-                ),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF211A10),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.hourglass_bottom,
-                      color: TaqwaColors.gold,
-                      size: 15,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        next == null
-                            ? 'Alle Gebete von heute sind vorbei'
-                            : 'Nächstes Gebet: ${prayerNames[next]!}',
-                        style: const TextStyle(fontSize: 10),
-                      ),
-                    ),
-                    Text(
-                      _countdown(remaining),
-                      style: const TextStyle(
-                        color: TaqwaColors.goldLight,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              _NextPrayerBar(schedule: schedule, clock: () => c.now),
             ],
           ),
         ),
@@ -227,7 +206,8 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
                 _PrayerTimeRow(
                   entry: entries[i],
                   highlighted: entries[i].prayer == next,
-                  isNext: entries[i].prayer != null && entries[i].prayer == next,
+                  isNext:
+                      entries[i].prayer != null && entries[i].prayer == next,
                   done: entries[i].prayer == null
                       ? null
                       : (c.todayPrayers[entries[i].prayer!] ?? false),
@@ -266,8 +246,8 @@ class _DailyHabitCard extends StatelessWidget {
     final allDone = controller.allPrayersTodayDone;
     final accent = allDone ? TaqwaColors.gold : TaqwaColors.green;
     final today = controller.today;
-    final weekday = DateFormat('EEEE', 'de_DE').format(today);
-    final dateLabel = DateFormat('d. MMMM', 'de_DE').format(today);
+    final weekday = formatDate(context, 'EEEE', today);
+    final dateLabel = formatDate(context, 'd. MMMM', today);
 
     return Container(
       padding: const EdgeInsets.all(12),
@@ -294,16 +274,10 @@ class _DailyHabitCard extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: Eyebrow(
-                  'HEUTE · $weekday'.toUpperCase(),
-                  color: accent,
-                ),
+                child: Eyebrow('HEUTE · $weekday'.toUpperCase(), color: accent),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 3,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
                   color: accent.withValues(alpha: 0.14),
                   borderRadius: BorderRadius.circular(20),
@@ -336,10 +310,7 @@ class _DailyHabitCard extends StatelessWidget {
               ),
               Text(
                 dateLabel,
-                style: const TextStyle(
-                  color: TaqwaColors.muted,
-                  fontSize: 9,
-                ),
+                style: const TextStyle(color: TaqwaColors.muted, fontSize: 9),
               ),
             ],
           ),
@@ -436,11 +407,11 @@ class _HabitPrayerRow extends StatelessWidget {
         duration: const Duration(milliseconds: 250),
         padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 8),
         decoration: BoxDecoration(
-          color: done ? accent.withValues(alpha: 0.14) : const Color(0xFF111111),
+          color: done
+              ? accent.withValues(alpha: 0.14)
+              : const Color(0xFF111111),
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: done ? accent : TaqwaColors.border,
-          ),
+          border: Border.all(color: done ? accent : TaqwaColors.border),
         ),
         child: Row(
           children: [
@@ -457,11 +428,7 @@ class _HabitPrayerRow extends StatelessWidget {
                 ),
               ),
               child: done
-                  ? const Icon(
-                      Icons.check,
-                      size: 15,
-                      color: Color(0xFF17120A),
-                    )
+                  ? const Icon(Icons.check, size: 15, color: Color(0xFF17120A))
                   : null,
             ),
             const SizedBox(width: 10),
@@ -563,10 +530,7 @@ class _PrayerTimeRow extends StatelessWidget {
               if (entry.hint != null)
                 Text(
                   entry.hint!,
-                  style: const TextStyle(
-                    color: TaqwaColors.muted,
-                    fontSize: 8,
-                  ),
+                  style: const TextStyle(color: TaqwaColors.muted, fontSize: 8),
                 ),
             ],
           ),
@@ -608,6 +572,75 @@ class _PrayerTimeRow extends StatelessWidget {
   );
 }
 
+/// Countdown bis zum nächsten Gebet – tickt sekündlich, aber nur innerhalb
+/// dieser Leiste. Die übrige Seite wird dadurch nicht neu gebaut.
+class _NextPrayerBar extends StatefulWidget {
+  const _NextPrayerBar({required this.schedule, required this.clock});
+  final PrayerSchedule schedule;
+  final DateTime Function() clock;
+
+  @override
+  State<_NextPrayerBar> createState() => _NextPrayerBarState();
+}
+
+class _NextPrayerBarState extends State<_NextPrayerBar> {
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final now = widget.clock();
+    final next = widget.schedule.nextPrayer(now);
+    final target = next == null
+        ? widget.schedule.times[Prayer.fajr]!.add(const Duration(days: 1))
+        : widget.schedule.times[next]!;
+    final remaining = target.difference(now);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
+      decoration: BoxDecoration(
+        color: const Color(0xFF211A10),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.hourglass_bottom, color: TaqwaColors.gold, size: 15),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              next == null
+                  ? 'Alle Gebete von heute sind vorbei'
+                  : 'Nächstes Gebet: ${prayerNames[next]!}',
+              style: const TextStyle(fontSize: 10),
+            ),
+          ),
+          Text(
+            _countdown(remaining),
+            style: const TextStyle(
+              color: TaqwaColors.goldLight,
+              fontWeight: FontWeight.w700,
+              fontSize: 12,
+              fontFeatures: [FontFeature.tabularFigures()],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 String _countdown(Duration d) {
   final safe = d.isNegative ? Duration.zero : d;
   return '${safe.inHours.toString().padLeft(2, '0')}:'
@@ -627,61 +660,12 @@ class QiblaScreen extends StatefulWidget {
 }
 
 class _QiblaScreenState extends State<QiblaScreen> {
-  static const _channel = EventChannel('taqwa_track/compass');
-
-  StreamSubscription<dynamic>? _subscription;
-  Timer? _sensorTimeout;
-  double? _heading;
-  bool _sensorMissing = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _listen();
-  }
-
-  void _listen() {
-    _sensorTimeout = Timer(const Duration(seconds: 3), () {
-      if (mounted && _heading == null) {
-        setState(() => _sensorMissing = true);
-      }
-    });
-    try {
-      _subscription = _channel.receiveBroadcastStream().listen(
-        (event) {
-          if (!mounted) return;
-          _sensorTimeout?.cancel();
-          setState(() {
-            _heading = (event as num).toDouble();
-            _sensorMissing = false;
-          });
-        },
-        onError: (_) {
-          if (!mounted) return;
-          setState(() => _sensorMissing = true);
-        },
-        cancelOnError: false,
-      );
-    } on Object {
-      _sensorMissing = true;
-    }
-  }
-
-  @override
-  void dispose() {
-    _sensorTimeout?.cancel();
-    _subscription?.cancel();
-    super.dispose();
-  }
-
   @override
   Widget build(BuildContext context) {
     final c = widget.controller;
     final settings = c.settings!;
     final qibla = qiblaBearing(settings.latitude, settings.longitude);
     final distance = distanceToKaaba(settings.latitude, settings.longitude);
-    final heading = _heading;
-    final aligned = heading != null && _angleDelta(qibla, heading).abs() <= 5;
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(14, 10, 14, 92),
@@ -715,84 +699,7 @@ class _QiblaScreenState extends State<QiblaScreen> {
                 style: const TextStyle(color: TaqwaColors.muted, fontSize: 9),
               ),
               const SizedBox(height: 12),
-              Center(
-                child: SizedBox(
-                  width: 244,
-                  height: 244,
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      Transform.rotate(
-                        angle: -((heading ?? 0) * math.pi / 180),
-                        child: CustomPaint(
-                          size: const Size.square(244),
-                          painter: _CompassDialPainter(aligned: aligned),
-                        ),
-                      ),
-                      Transform.rotate(
-                        angle: (qibla - (heading ?? 0)) * math.pi / 180,
-                        child: CustomPaint(
-                          size: const Size.square(244),
-                          painter: _QiblaNeedlePainter(aligned: aligned),
-                        ),
-                      ),
-                      Container(
-                        width: 48,
-                        height: 48,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: const Color(0xFF1D1810),
-                          border: Border.all(
-                            color: aligned
-                                ? TaqwaColors.green
-                                : TaqwaColors.gold,
-                            width: 1.5,
-                          ),
-                        ),
-                        child: Center(
-                          child: Text(
-                            '${qibla.round()}°',
-                            style: const TextStyle(
-                              color: TaqwaColors.goldLight,
-                              fontWeight: FontWeight.w800,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(height: 10),
-              Center(
-                child: Text(
-                  heading == null
-                      ? 'Kompass wird gesucht …'
-                      : aligned
-                      ? 'Ausgerichtet – du blickst zur Kaaba'
-                      : 'Handy flach halten, bis der Pfeil nach oben zeigt',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: aligned ? FontWeight.w700 : FontWeight.w500,
-                    color: aligned
-                        ? TaqwaColors.green
-                        : TaqwaColors.goldLight,
-                  ),
-                ),
-              ),
-              if (heading == null && _sensorMissing)
-                const Padding(
-                  padding: EdgeInsets.only(top: 6),
-                  child: Center(
-                    child: Text(
-                      'Kein Kompass-Sensor gefunden – die Richtung oben gilt trotzdem.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: TaqwaColors.muted, fontSize: 8),
-                    ),
-                  ),
-                ),
+              _QiblaCompass(qibla: qibla),
             ],
           ),
         ),
@@ -864,6 +771,164 @@ class _QiblaScreenState extends State<QiblaScreen> {
             style: TextStyle(color: TaqwaColors.muted, fontSize: 8),
           ),
         ),
+      ],
+    );
+  }
+}
+
+/// Kompassnadel samt Sensor-Abo. Der Sensor feuert bis zu 50-mal pro Sekunde;
+/// deshalb lebt er in einem eigenen Widget und rebuildet nicht die ganze
+/// Qibla-Seite. Ein Tiefpass glättet das typische Sensorrauschen.
+class _QiblaCompass extends StatefulWidget {
+  const _QiblaCompass({required this.qibla});
+  final double qibla;
+
+  @override
+  State<_QiblaCompass> createState() => _QiblaCompassState();
+}
+
+class _QiblaCompassState extends State<_QiblaCompass> {
+  static const _channel = EventChannel('taqwa_track/compass');
+
+  StreamSubscription<dynamic>? _subscription;
+  Timer? _sensorTimeout;
+  double? _heading;
+  bool _sensorMissing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _listen();
+  }
+
+  void _listen() {
+    _sensorTimeout = Timer(const Duration(seconds: 3), () {
+      if (mounted && _heading == null) {
+        setState(() => _sensorMissing = true);
+      }
+    });
+    try {
+      _subscription = _channel.receiveBroadcastStream().listen(
+        (event) {
+          if (!mounted) return;
+          final raw = (event as num).toDouble();
+          _sensorTimeout?.cancel();
+          setState(() {
+            _heading = _smooth(raw);
+            _sensorMissing = false;
+          });
+        },
+        onError: (_) {
+          if (!mounted) return;
+          setState(() => _sensorMissing = true);
+        },
+        cancelOnError: false,
+      );
+    } on Object {
+      _sensorMissing = true;
+    }
+  }
+
+  /// Exponentielle Glättung über den kürzesten Weg um den Kreis.
+  double _smooth(double value) {
+    final previous = _heading;
+    if (previous == null) return value;
+    final delta = _angleDelta(value, previous);
+    return (previous + delta * 0.28 + 360) % 360;
+  }
+
+  @override
+  void dispose() {
+    _sensorTimeout?.cancel();
+    _subscription?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final heading = _heading;
+    final aligned =
+        heading != null && _angleDelta(widget.qibla, heading).abs() <= 5;
+    return Column(
+      children: [
+        Semantics(
+          label: heading == null
+              ? 'Qibla-Kompass, Sensor wird gesucht'
+              : 'Qibla-Kompass, Kaaba bei ${widget.qibla.round()} Grad, '
+                    'Gerät bei ${heading.round()} Grad',
+          child: SizedBox(
+            width: 244,
+            height: 244,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                Transform.rotate(
+                  angle: -((heading ?? 0) * math.pi / 180),
+                  child: CustomPaint(
+                    size: const Size.square(244),
+                    painter: _CompassDialPainter(aligned: aligned),
+                  ),
+                ),
+                Transform.rotate(
+                  angle: (widget.qibla - (heading ?? 0)) * math.pi / 180,
+                  child: CustomPaint(
+                    size: const Size.square(244),
+                    painter: _QiblaNeedlePainter(aligned: aligned),
+                  ),
+                ),
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: const Color(0xFF1D1810),
+                    border: Border.all(
+                      color: aligned ? TaqwaColors.green : TaqwaColors.gold,
+                      width: 1.5,
+                    ),
+                  ),
+                  child: Center(
+                    child: Text(
+                      '${widget.qibla.round()}°',
+                      style: const TextStyle(
+                        color: TaqwaColors.goldLight,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Center(
+          child: Text(
+            heading == null
+                ? 'Kompass wird gesucht …'
+                : aligned
+                ? 'Ausgerichtet – du blickst zur Kaaba'
+                : 'Handy flach halten, bis der Pfeil nach oben zeigt',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: aligned ? FontWeight.w700 : FontWeight.w500,
+              color: aligned ? TaqwaColors.green : TaqwaColors.goldLight,
+            ),
+          ),
+        ),
+        if (heading == null && _sensorMissing)
+          const Padding(
+            padding: EdgeInsets.only(top: 6),
+            child: Center(
+              child: Text(
+                'Kein Kompass-Sensor gefunden – die Richtung oben gilt trotzdem.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: TaqwaColors.muted, fontSize: 8),
+              ),
+            ),
+          ),
       ],
     );
   }

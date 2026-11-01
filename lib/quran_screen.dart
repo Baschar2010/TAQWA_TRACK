@@ -69,7 +69,11 @@ class QuranLibrary {
   QuranLibrary._();
 
   static List<SurahInfo>? _surahCache;
-  static final Map<int, List<QuranVerse>> _verseCache = {};
+
+  /// Nur die zuletzt gelesenen Suren bleiben im Speicher. Der ganze Quran
+  /// würde sonst dauerhaft mehrere Megabyte belegen.
+  static const _maxCachedSurahs = 3;
+  static final Map<int, Future<List<QuranVerse>>> _verseCache = {};
 
   static Future<List<SurahInfo>> surahs() async {
     if (_surahCache case final cached?) return cached;
@@ -82,15 +86,27 @@ class QuranLibrary {
     return list;
   }
 
-  static Future<List<QuranVerse>> verses(int surah) async {
-    if (_verseCache[surah] case final cached?) return cached;
+  static Future<List<QuranVerse>> verses(int surah) {
+    final cached = _verseCache.remove(surah);
+    if (cached != null) {
+      // Als zuletzt benutzt markieren (LRU).
+      _verseCache[surah] = cached;
+      return cached;
+    }
+    final future = _loadVerses(surah);
+    _verseCache[surah] = future;
+    while (_verseCache.length > _maxCachedSurahs) {
+      _verseCache.remove(_verseCache.keys.first);
+    }
+    return future;
+  }
+
+  static Future<List<QuranVerse>> _loadVerses(int surah) async {
     final raw = await rootBundle.loadString('assets/quran/surah_$surah.json');
     final decoded = jsonDecode(raw) as Map<String, dynamic>;
-    final list = (decoded['verses'] as List<dynamic>)
+    return (decoded['verses'] as List<dynamic>)
         .map((e) => QuranVerse.fromJson(e as Map<String, dynamic>))
         .toList();
-    _verseCache[surah] = list;
-    return list;
   }
 
   static Future<SurahInfo?> byNumber(int number) async {
@@ -100,6 +116,9 @@ class QuranLibrary {
     }
     return null;
   }
+
+  @visibleForTesting
+  static void clearVerseCache() => _verseCache.clear();
 }
 
 class QuranScreen extends StatefulWidget {
@@ -139,7 +158,8 @@ class _QuranScreenState extends State<QuranScreen> {
           tooltip: 'Lesezeichen',
           onPressed: () => Navigator.of(context).push(
             MaterialPageRoute<void>(
-              builder: (_) => QuranBookmarksScreen(controller: widget.controller),
+              builder: (_) =>
+                  QuranBookmarksScreen(controller: widget.controller),
             ),
           ),
           icon: const Icon(Icons.bookmarks_outlined, size: 18),
@@ -161,12 +181,17 @@ class _QuranScreenState extends State<QuranScreen> {
             return Column(
               children: [
                 if (_query.isEmpty)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(14, 8, 14, 4),
-                    child: _ContinueReadingCard(
-                      controller: widget.controller,
-                      surahs: all,
-                    ),
+                  ValueListenableBuilder<(int, int)?>(
+                    valueListenable: widget.controller.lastReadNotifier,
+                    builder: (context, progress, _) => progress == null
+                        ? const SizedBox.shrink()
+                        : Padding(
+                            padding: const EdgeInsets.fromLTRB(14, 8, 14, 4),
+                            child: _ContinueReadingCard(
+                              controller: widget.controller,
+                              surahs: all,
+                            ),
+                          ),
                   ),
                 Padding(
                   padding: const EdgeInsets.fromLTRB(14, 8, 14, 6),
@@ -205,10 +230,7 @@ class _QuranScreenState extends State<QuranScreen> {
 }
 
 class _ContinueReadingCard extends StatelessWidget {
-  const _ContinueReadingCard({
-    required this.controller,
-    required this.surahs,
-  });
+  const _ContinueReadingCard({required this.controller, required this.surahs});
   final TaqwaController controller;
   final List<SurahInfo> surahs;
 
@@ -366,11 +388,10 @@ class SurahScreen extends StatefulWidget {
 }
 
 class _SurahScreenState extends State<SurahScreen> {
-  late final Future<List<QuranVerse>> _verses = QuranLibrary.verses(
-    widget.surah.number,
-  );
+  late Future<List<QuranVerse>> _verses;
   final AudioPlayer _player = AudioPlayer();
   final ScrollController _scroll = ScrollController();
+  final GlobalKey _targetKey = GlobalKey();
   StreamSubscription<PlayerState>? _playerSub;
   int? _playing;
   int _highestBuilt = 1;
@@ -381,6 +402,7 @@ class _SurahScreenState extends State<SurahScreen> {
   @override
   void initState() {
     super.initState();
+    _verses = QuranLibrary.verses(widget.surah.number);
     _playerSub = _player.playerStateStream.listen((state) {
       if (state.processingState == ProcessingState.completed) {
         final next = (_playing ?? 0) + 1;
@@ -395,11 +417,39 @@ class _SurahScreenState extends State<SurahScreen> {
     _scroll.addListener(_onScroll);
     _remember(1);
     if (widget.jumpToAyah != null && widget.jumpToAyah! > 1) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        // Grobe Position: Ayah 1 beginnt nach der Sure-Karte.
-        _scroll.jumpTo((widget.jumpToAyah! - 1) * 118.0);
-      });
+      WidgetsBinding.instance.addPostFrameCallback((_) => _jumpToTarget());
     }
+  }
+
+  /// Springt zur gespeicherten Ayah. Zuerst wird grob geschätzt, danach
+  /// korrigiert [Scrollable.ensureVisible] auf die tatsächliche Höhe der
+  /// Karte – Ayahs sind unterschiedlich lang, eine reine Schätzung landet
+  /// sonst schnell mehrere Verse daneben.
+  void _jumpToTarget() {
+    if (!mounted || !_scroll.hasClients) return;
+    final ayah = widget.jumpToAyah;
+    if (ayah == null) return;
+    final estimate = (ayah - 1) * 118.0;
+    final max = _scroll.position.maxScrollExtent;
+    _scroll.jumpTo(estimate.clamp(0.0, max));
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final target = _targetKey.currentContext;
+      if (target != null) {
+        Scrollable.ensureVisible(
+          target,
+          alignment: 0.05,
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutCubic,
+        );
+      }
+    });
+  }
+
+  void _retry() {
+    QuranLibrary.clearVerseCache();
+    setState(() {
+      _verses = QuranLibrary.verses(widget.surah.number);
+    });
   }
 
   void _remember(int ayah) {
@@ -420,13 +470,18 @@ class _SurahScreenState extends State<SurahScreen> {
     if (!_hasAudio) return;
     setState(() => _playing = ayah);
     try {
-      await _player.setAsset(
-        'assets/audio/quran/${widget.surah.number}_$ayah.mp3',
-      );
+      await _player.setAsset('assets/audio/${widget.surah.number}_$ayah.mp3');
       await _player.play();
       _remember(ayah);
-    } catch (_) {
-      if (mounted) setState(() => _playing = null);
+    } catch (error) {
+      debugPrint('Rezitation konnte nicht geladen werden: $error');
+      if (!mounted) return;
+      setState(() => _playing = null);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Rezitation für diese Ayah nicht verfügbar.'),
+        ),
+      );
     }
   }
 
@@ -470,6 +525,38 @@ class _SurahScreenState extends State<SurahScreen> {
                 child: CircularProgressIndicator(color: TaqwaColors.gold),
               );
             }
+            if (snapshot.hasError) {
+              return Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.menu_book_outlined,
+                        color: TaqwaColors.muted,
+                        size: 34,
+                      ),
+                      const SizedBox(height: 10),
+                      const Text(
+                        'Diese Sure konnte nicht geladen werden.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: TaqwaColors.muted,
+                          fontSize: 11,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      OutlinedButton.icon(
+                        onPressed: _retry,
+                        icon: const Icon(Icons.refresh, size: 16),
+                        label: const Text('Erneut laden'),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }
             final verses = snapshot.data ?? const <QuranVerse>[];
             return ListView.builder(
               controller: _scroll,
@@ -480,6 +567,7 @@ class _SurahScreenState extends State<SurahScreen> {
                 final verse = verses[index - 1];
                 if (verse.number > _highestBuilt) _highestBuilt = verse.number;
                 return _VerseTile(
+                  key: verse.number == widget.jumpToAyah ? _targetKey : null,
                   verse: verse,
                   surah: widget.surah.number,
                   controller: widget.controller,
@@ -545,6 +633,7 @@ class _SurahScreenState extends State<SurahScreen> {
 
 class _VerseTile extends StatelessWidget {
   const _VerseTile({
+    super.key,
     required this.verse,
     required this.surah,
     required this.controller,
@@ -559,103 +648,121 @@ class _VerseTile extends StatelessWidget {
   final bool hasAudio;
   final VoidCallback onPlay;
 
+  Future<void> _copy(BuildContext context) async {
+    await Clipboard.setData(
+      ClipboardData(
+        text:
+            '${verse.arabic}\n\n${verse.german}\n\n'
+            '— Sure $surah, Ayah ${verse.number}',
+      ),
+    );
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Ayah kopiert')));
+  }
+
   @override
   Widget build(BuildContext context) {
     final bookmarked = controller.isBookmarked(surah, verse.number);
     return Padding(
       padding: const EdgeInsets.only(bottom: 9),
-      child: TaqwaCard(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              verse.arabic,
-              textDirection: TextDirection.rtl,
-              textAlign: TextAlign.right,
-              style: const TextStyle(
-                fontSize: 20,
-                height: 1.9,
-                color: TaqwaColors.text,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      child: Semantics(
+        hint: 'Lange drücken, um die Ayah zu kopieren',
+        child: GestureDetector(
+          onLongPress: () => _copy(context),
+          child: TaqwaCard(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 6,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF221B0E),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: TaqwaColors.border),
-                  ),
-                  child: Text(
-                    '${verse.number}',
-                    style: const TextStyle(
-                      color: TaqwaColors.gold,
-                      fontSize: 8,
-                      fontWeight: FontWeight.w700,
-                    ),
+                Text(
+                  verse.arabic,
+                  textDirection: TextDirection.rtl,
+                  textAlign: TextAlign.right,
+                  style: const TextStyle(
+                    fontSize: 20,
+                    height: 1.9,
+                    color: TaqwaColors.text,
                   ),
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    verse.german,
-                    style: const TextStyle(
-                      color: TaqwaColors.muted,
-                      fontSize: 10,
-                      height: 1.5,
+                const SizedBox(height: 8),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF221B0E),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: TaqwaColors.border),
+                      ),
+                      child: Text(
+                        '${verse.number}',
+                        style: const TextStyle(
+                          color: TaqwaColors.gold,
+                          fontSize: 8,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                     ),
-                  ),
-                ),
-                if (hasAudio)
-                  IconButton(
-                    tooltip: playing ? 'Pause' : 'Ayah anhören',
-                    onPressed: onPlay,
-                    icon: Icon(
-                      playing
-                          ? Icons.pause_circle_filled
-                          : Icons.play_circle_outline,
-                      size: 20,
-                      color: TaqwaColors.gold,
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        verse.german,
+                        style: const TextStyle(
+                          color: TaqwaColors.muted,
+                          fontSize: 10,
+                          height: 1.5,
+                        ),
+                      ),
                     ),
-                    visualDensity: VisualDensity.compact,
-                    constraints: const BoxConstraints(
-                      minWidth: 30,
-                      minHeight: 30,
+                    if (hasAudio)
+                      IconButton(
+                        tooltip: playing ? 'Pause' : 'Ayah anhören',
+                        onPressed: onPlay,
+                        icon: Icon(
+                          playing
+                              ? Icons.pause_circle_filled
+                              : Icons.play_circle_outline,
+                          size: 20,
+                          color: TaqwaColors.gold,
+                        ),
+                        visualDensity: VisualDensity.compact,
+                        constraints: const BoxConstraints(
+                          minWidth: 30,
+                          minHeight: 30,
+                        ),
+                        padding: EdgeInsets.zero,
+                      ),
+                    IconButton(
+                      tooltip: bookmarked
+                          ? 'Lesezeichen entfernen'
+                          : 'Ayah merken',
+                      onPressed: () =>
+                          controller.toggleBookmark(surah, verse.number),
+                      icon: Icon(
+                        bookmarked ? Icons.bookmark : Icons.bookmark_border,
+                        size: 18,
+                        color: bookmarked
+                            ? TaqwaColors.gold
+                            : TaqwaColors.muted,
+                      ),
+                      visualDensity: VisualDensity.compact,
+                      constraints: const BoxConstraints(
+                        minWidth: 30,
+                        minHeight: 30,
+                      ),
+                      padding: EdgeInsets.zero,
                     ),
-                    padding: EdgeInsets.zero,
-                  ),
-                IconButton(
-                  tooltip: bookmarked
-                      ? 'Lesezeichen entfernen'
-                      : 'Ayah merken',
-                  onPressed: () => controller.toggleBookmark(
-                    surah,
-                    verse.number,
-                  ),
-                  icon: Icon(
-                    bookmarked ? Icons.bookmark : Icons.bookmark_border,
-                    size: 18,
-                    color: bookmarked
-                        ? TaqwaColors.gold
-                        : TaqwaColors.muted,
-                  ),
-                  visualDensity: VisualDensity.compact,
-                  constraints: const BoxConstraints(
-                    minWidth: 30,
-                    minHeight: 30,
-                  ),
-                  padding: EdgeInsets.zero,
+                  ],
                 ),
               ],
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -722,14 +829,14 @@ class _QuranBookmarksScreenState extends State<QuranBookmarksScreen> {
                     ),
                     subtitle: const Text(
                       'Antippen zum Weiterlesen',
-                      style: TextStyle(
-                        fontSize: 8,
-                        color: TaqwaColors.muted,
-                      ),
+                      style: TextStyle(fontSize: 8, color: TaqwaColors.muted),
                     ),
                     trailing: IconButton(
                       onPressed: () async {
-                        await widget.controller.toggleBookmark(mark.$1, mark.$2);
+                        await widget.controller.toggleBookmark(
+                          mark.$1,
+                          mark.$2,
+                        );
                         setState(() {});
                       },
                       icon: const Icon(

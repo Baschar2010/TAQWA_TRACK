@@ -149,7 +149,11 @@ class _QrScannerScreenState extends State<QrScannerScreen> {
               'Halte den QR-Code deines Familienmitglieds in den Rahmen. '
               'Die Kopplung passiert sofort – ohne Internet.',
               textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.white70, fontSize: 10, height: 1.5),
+              style: TextStyle(
+                color: Colors.white70,
+                fontSize: 10,
+                height: 1.5,
+              ),
             ),
           ),
         ),
@@ -164,8 +168,7 @@ class _ScannerError extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final denied =
-        error.errorCode == MobileScannerErrorCode.permissionDenied;
+    final denied = error.errorCode == MobileScannerErrorCode.permissionDenied;
     return Center(
       child: Padding(
         padding: const EdgeInsets.all(24),
@@ -221,16 +224,17 @@ class PartnerSection extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   if (snapshot.code.isNotEmpty)
-                    ProfileQrCard(snapshot: snapshot, size: 116, showCode: false),
+                    ProfileQrCard(
+                      snapshot: snapshot,
+                      size: 116,
+                      showCode: false,
+                    ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Eyebrow(
-                          'DEIN QR-CODE',
-                          color: TaqwaColors.gold,
-                        ),
+                        const Eyebrow('DEIN QR-CODE', color: TaqwaColors.gold),
                         const SizedBox(height: 4),
                         Text(
                           snapshot.name,
@@ -335,11 +339,7 @@ class PartnerSection extends StatelessWidget {
           TaqwaCard(
             child: Column(
               children: [
-                const Icon(
-                  Icons.qr_code_2,
-                  color: TaqwaColors.gold,
-                  size: 28,
-                ),
+                const Icon(Icons.qr_code_2, color: TaqwaColors.gold, size: 28),
                 const SizedBox(height: 7),
                 const Text(
                   'Noch keine Kopplung',
@@ -394,9 +394,7 @@ class PartnerSection extends StatelessWidget {
       if (snapshot == null) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              result.reason ?? 'Kein TAQWA-TRACK-QR-Code erkannt.',
-            ),
+            content: Text(result.reason ?? 'Kein TAQWA-TRACK-QR-Code erkannt.'),
             duration: const Duration(seconds: 3),
           ),
         );
@@ -444,7 +442,10 @@ class PartnerSection extends StatelessWidget {
     } on StateError catch (error) {
       if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(error.message), duration: const Duration(seconds: 2)),
+        SnackBar(
+          content: Text(error.message),
+          duration: const Duration(seconds: 2),
+        ),
       );
     }
   }
@@ -457,7 +458,8 @@ class PartnerSection extends StatelessWidget {
     if (payload == null || payload.isEmpty || !context.mounted) return;
     // Ein reiner Code enthält keinen Fortschritt – daraus einen Minimal-Snapshot
     // bauen, damit die Kopplung trotzdem funktioniert.
-    final snapshot = ProfileSnapshot.tryParse(payload) ??
+    final snapshot =
+        ProfileSnapshot.tryParse(payload) ??
         ProfileSnapshot(
           code: payload.toUpperCase(),
           name: 'Partner',
@@ -684,10 +686,7 @@ class _PartnerCard extends StatelessWidget {
                   partner.habitsTotal == 0
                       ? '–'
                       : '${partner.habitsDone}/${partner.habitsTotal}',
-                  style: const TextStyle(
-                    color: TaqwaColors.muted,
-                    fontSize: 8,
-                  ),
+                  style: const TextStyle(color: TaqwaColors.muted, fontSize: 8),
                 ),
               ],
             ),
@@ -714,10 +713,7 @@ class _PartnerCard extends StatelessWidget {
                 const SizedBox(width: 4),
                 Text(
                   '${partner.streak} Tage Streak',
-                  style: const TextStyle(
-                    color: TaqwaColors.muted,
-                    fontSize: 8,
-                  ),
+                  style: const TextStyle(color: TaqwaColors.muted, fontSize: 8),
                 ),
                 const Spacer(),
                 if (partner.reminderAt != null)
@@ -731,10 +727,7 @@ class _PartnerCard extends StatelessWidget {
                       const SizedBox(width: 3),
                       Text(
                         'Erinnerung erhalten',
-                        style: TextStyle(
-                          color: TaqwaColors.green,
-                          fontSize: 8,
-                        ),
+                        style: TextStyle(color: TaqwaColors.green, fontSize: 8),
                       ),
                     ],
                   ),
@@ -780,9 +773,9 @@ class _PartnerCard extends StatelessWidget {
       }
     } on StateError catch (error) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(error.message)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(error.message)));
       }
     }
   }
@@ -790,10 +783,8 @@ class _PartnerCard extends StatelessWidget {
   Future<void> _renamePartner(BuildContext context) async {
     final result = await showDialog<String>(
       context: context,
-      builder: (_) => _RenameDialog(
-        initial: partner.displayName,
-        remoteName: partner.name,
-      ),
+      builder: (_) =>
+          _RenameDialog(initial: partner.displayName, remoteName: partner.name),
     );
     if (result == null) return;
     await controller.renamePartner(partner.id, result);
@@ -848,11 +839,7 @@ class _FallbackLinkSheet extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(
-            Icons.wifi_tethering,
-            color: TaqwaColors.gold,
-            size: 26,
-          ),
+          const Icon(Icons.wifi_tethering, color: TaqwaColors.gold, size: 26),
           const SizedBox(height: 8),
           const Text(
             'Noch nicht gegenseitig verknüpft',
@@ -932,11 +919,7 @@ class _RenameDialogState extends State<_RenameDialog> {
         const Text(
           'Der Name gilt nur auf diesem Gerät. Der eigene Name der anderen '
           'Person bleibt unverändert.',
-          style: TextStyle(
-            color: TaqwaColors.muted,
-            fontSize: 9,
-            height: 1.45,
-          ),
+          style: TextStyle(color: TaqwaColors.muted, fontSize: 9, height: 1.45),
         ),
       ],
     ),
