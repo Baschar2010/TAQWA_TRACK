@@ -3,11 +3,13 @@ import 'package:geolocator/geolocator.dart';
 
 import 'data/taqwa_repository.dart';
 import 'domain.dart';
+import 'notifications.dart';
 
 class Habit {
-  const Habit({required this.id, required this.name});
+  const Habit({required this.id, required this.name, this.builtIn = false});
   final int id;
   final String name;
+  final bool builtIn;
 }
 
 class TaqwaController extends ChangeNotifier {
@@ -24,12 +26,17 @@ class TaqwaController extends ChangeNotifier {
   List<Habit> habits = [];
   Map<int, HabitStatus> todayHabits = {};
   Map<String, Map<int, HabitStatus>> weekHabits = {};
-  List<FamilyMember> family = [];
   List<Partner> partners = [];
-  Map<int, Map<String, bool>> familyPrayers = {};
+  List<(int, int)> bookmarks = [];
+  (int, int)? lastRead;
   DateTime selectedDate = DateTime.now();
   bool ready = false;
   String? error;
+
+  /// Wird gesetzt, sobald heute von 5/5 auf Gold gewechselt wurde, damit die
+  /// Erfolgs-Animation genau einmal läuft.
+  bool goldCelebrationPending = false;
+  bool _wasComplete = false;
 
   DateTime get now => _clock();
   DateTime get today {
@@ -51,13 +58,43 @@ class TaqwaController extends ChangeNotifier {
     return schedule!.times[prayer]!.difference(now);
   }
 
+  int get builtInHabitCount {
+    var total = 0;
+    var done = 0;
+    for (final habit in habits.where((h) => h.builtIn)) {
+      total++;
+      if (todayHabits[habit.id] == HabitStatus.done) done++;
+    }
+    return total == 0 ? 0 : done;
+  }
+
+  int get builtInHabitTotal => habits.where((h) => h.builtIn).length;
+
+  /// Schnappschuss für den eigenen QR-Code.
+  ProfileSnapshot get profileSnapshot => ProfileSnapshot(
+    code: settings?.profileId ?? '',
+    name: settings?.name ?? '',
+    prayerMask: [
+      for (final prayer in Prayer.values)
+        todayPrayers[prayer] == true ? '1' : '0',
+    ].join(),
+    habitsDone: builtInHabitCount,
+    habitsTotal: builtInHabitTotal,
+    streak: settings?.streak ?? 0,
+    day: dayKey(today),
+    reminderAt: settings?.outboxReminderAt,
+    reminderText: settings?.outboxReminderText,
+  );
+
   Future<void> initialize() async {
     try {
-      settings = await repository.loadSettings();
+      settings = await repository.ensureProfile();
       selectedDate = DateTime(now.year, now.month, now.day);
       await refresh();
+      _wasComplete = allPrayersTodayDone;
       ready = true;
       notifyListeners();
+      await applyNotificationSchedule();
     } catch (e) {
       error = 'Die lokalen App-Daten konnten nicht geladen werden: $e';
       ready = true;
@@ -78,25 +115,26 @@ class TaqwaController extends ChangeNotifier {
     todayPrayers = dayKey(selectedDate) == dayKey(now)
         ? Map<Prayer, bool>.of(prayers)
         : await repository.prayerStatuses(now);
-    habits = (await repository.habits())
-        .map(
-          (row) => Habit(id: row['id']! as int, name: row['name']! as String),
-        )
-        .toList();
+    habits = [
+      for (final row in await repository.habits())
+        Habit(
+          id: row['id']! as int,
+          name: row['name']! as String,
+          builtIn: row['built_in'] == 1,
+        ),
+    ];
     todayHabits = await repository.habitStatuses(selectedDate);
     weekHabits = await repository.habitWeek(selectedDate);
-    family = await repository.familyMembers();
     partners = await repository.partners();
-    familyPrayers = {
-      for (final member in family)
-        member.id: await repository.familyPrayerStatus(selectedDate, member.id),
-    };
+    bookmarks = await repository.quranBookmarks();
+    lastRead = await repository.quranProgress();
   }
 
   Future<PrayerAward> togglePrayer(Prayer prayer) async {
     final award = await repository.togglePrayer(selectedDate, prayer);
     settings = await repository.loadSettings();
     await refresh();
+    _checkGold();
     notifyListeners();
     return award;
   }
@@ -107,8 +145,26 @@ class TaqwaController extends ChangeNotifier {
     final award = await repository.togglePrayer(today, prayer);
     settings = await repository.loadSettings();
     await refresh();
+    _checkGold();
     notifyListeners();
     return award;
+  }
+
+  void _checkGold() {
+    final done = allPrayersTodayDone;
+    if (done && !_wasComplete) {
+      final day = dayKey(today);
+      if (settings?.goldDay != day) {
+        goldCelebrationPending = true;
+        repository.updateSettings(goldDay: day);
+      }
+    }
+    _wasComplete = done;
+  }
+
+  void clearGoldCelebration() {
+    goldCelebrationPending = false;
+    notifyListeners();
   }
 
   Future<HabitAward> setHabitStatus(int id, HabitStatus status) async {
@@ -152,11 +208,30 @@ class TaqwaController extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> completeOnboarding({
+    required String name,
+    required String language,
+  }) async {
+    final clean = name.trim().isEmpty ? 'Mein Profil' : name.trim();
+    final code = settings?.profileId ?? '';
+    await repository.completeOnboarding(clean, code, language: language);
+    settings = await repository.loadSettings();
+    await refresh();
+    notifyListeners();
+  }
+
+  Future<void> setLanguage(String language) async {
+    await repository.updateSettings(language: language);
+    settings = await repository.loadSettings();
+    notifyListeners();
+  }
+
   Future<void> updateCalculation({String? method, bool? hanafi}) async {
     await repository.updateSettings(calculationMethod: method, hanafi: hanafi);
     settings = await repository.loadSettings();
     await refresh();
     notifyListeners();
+    await applyNotificationSchedule();
   }
 
   Future<void> updateCoordinates({
@@ -172,6 +247,7 @@ class TaqwaController extends ChangeNotifier {
     settings = await repository.loadSettings();
     await refresh();
     notifyListeners();
+    await applyNotificationSchedule();
   }
 
   Future<void> useDeviceLocation() async {
@@ -202,34 +278,26 @@ class TaqwaController extends ChangeNotifier {
     );
   }
 
-  Future<void> addFamilyMember(String name) async {
-    if (name.trim().isEmpty) return;
-    await repository.addFamilyMember(name);
-    await refresh();
-    notifyListeners();
-  }
+  // ---- Kopplung -----------------------------------------------------
 
-  Future<void> removeFamilyMember(int id) async {
-    await repository.removeFamilyMember(id);
-    await refresh();
-    notifyListeners();
-  }
-
-  Future<void> completeOnboarding(String name, {String? code}) async {
-    final current = settings?.profileId ?? '';
-    final profileCode = (code == null || code.isEmpty)
-        ? (current.isEmpty ? generateProfileCode() : current)
-        : code;
-    await repository.completeOnboarding(name, profileCode);
-    settings = await repository.loadSettings();
-    notifyListeners();
-  }
-
-  Future<bool> linkPartner(String code, String name) async {
-    final linked = await repository.linkPartner(code, name);
+  /// Verarbeitet einen gescannten QR-Code: linkt den Partner, übernimmt
+  /// dessen Fortschritt und zeigt ggf. seine Erinnerung an.
+  Future<ProfileSnapshot?> linkFromScan(String raw) async {
+    final snapshot = ProfileSnapshot.tryParse(raw);
+    if (snapshot == null) return null;
+    if (snapshot.code == settings?.profileId) {
+      throw StateError('Das ist dein eigener QR-Code.');
+    }
+    await repository.savePartnerSnapshot(snapshot);
     partners = await repository.partners();
     notifyListeners();
-    return linked;
+    if (snapshot.reminderAt != null) {
+      await NotificationService.showNow(
+        title: 'Erinnerung von ${snapshot.name.isEmpty ? 'deinem Partner' : snapshot.name}',
+        body: snapshot.reminderText ?? ProfileSnapshot.defaultReminder,
+      );
+    }
+    return snapshot;
   }
 
   Future<void> unlinkPartner(int id) async {
@@ -238,14 +306,118 @@ class TaqwaController extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> toggleFamilyPrayer(
-    int memberId,
-    Prayer prayer,
-    bool done,
-  ) async {
-    await repository.setFamilyPrayer(selectedDate, memberId, prayer, done);
-    await refresh();
+  /// Legt eine Erinnerung für einen Partner an. Sie wird mit dem eigenen
+  /// QR-Code übertragen und beim nächsten Scan dort angezeigt.
+  Future<void> sendReminder(Partner partner) async {
+    await repository.updateSettings(
+      outboxReminderAt: DateTime.now().toIso8601String(),
+      outboxReminderText:
+          '${settings?.name ?? 'Deine Familie'} erinnert dich ans Gebet. Möge Allah es annehmen.',
+    );
+    settings = await repository.loadSettings();
+    await NotificationService.showNow(
+      title: 'Erinnerung bereit',
+      body:
+          'Zeige ${partner.name} deinen QR-Code – die Erinnerung wird beim Scannen übertragen.',
+    );
     notifyListeners();
+  }
+
+  Future<void> clearOutbox() async {
+    await repository.updateSettings(clearOutbox: true);
+    settings = await repository.loadSettings();
+    notifyListeners();
+  }
+
+  // ---- Quran --------------------------------------------------------
+
+  Future<void> saveLastRead(int surah, int ayah) async {
+    await repository.saveQuranProgress(surah, ayah);
+    lastRead = (surah, ayah);
+    notifyListeners();
+  }
+
+  Future<bool> toggleBookmark(int surah, int ayah) async {
+    final added = await repository.toggleQuranBookmark(surah, ayah);
+    bookmarks = await repository.quranBookmarks();
+    notifyListeners();
+    return added;
+  }
+
+  bool isBookmarked(int surah, int ayah) =>
+      bookmarks.any((b) => b.$1 == surah && b.$2 == ayah);
+
+  // ---- Tasbih -------------------------------------------------------
+
+  Future<void> tasbihTap() async {
+    final current = settings?.tasbihCount ?? 0;
+    final target = settings?.tasbihTarget ?? 33;
+    final next = current + 1;
+    await repository.updateSettings(tasbihCount: next >= target ? 0 : next);
+    settings = await repository.loadSettings();
+    notifyListeners();
+  }
+
+  Future<void> setTasbihTarget(int target) async {
+    await repository.updateSettings(
+      tasbihTarget: target.clamp(1, 999),
+      tasbihCount: 0,
+    );
+    settings = await repository.loadSettings();
+    notifyListeners();
+  }
+
+  Future<void> resetTasbih() async {
+    await repository.updateSettings(tasbihCount: 0);
+    settings = await repository.loadSettings();
+    notifyListeners();
+  }
+
+  // ---- Darstellung & Benachrichtigungen -----------------------------
+
+  Future<void> setOled(bool value) async {
+    await repository.updateSettings(oled: value);
+    settings = await repository.loadSettings();
+    notifyListeners();
+  }
+
+  Future<void> setAdhan({
+    required bool enabled,
+    required int minutesBefore,
+  }) async {
+    await repository.updateSettings(
+      adhanEnabled: enabled,
+      adhanMinutesBefore: minutesBefore.clamp(0, 30),
+    );
+    settings = await repository.loadSettings();
+    notifyListeners();
+    await applyNotificationSchedule();
+  }
+
+  Future<void> applyNotificationSchedule() async {
+    final current = settings;
+    if (current == null) return;
+    try {
+      if (!current.adhanEnabled) {
+        await NotificationService.cancelPrayerReminders();
+        return;
+      }
+      await NotificationService.requestPermissions();
+      final todaySchedule = PrayerSchedule.calculate(
+        date: now,
+        latitude: current.latitude,
+        longitude: current.longitude,
+        method: current.calculationMethod,
+        hanafi: current.hanafi,
+      );
+      await NotificationService.schedulePrayerReminders(
+        schedule: todaySchedule,
+        minutesBefore: current.adhanMinutesBefore,
+        withAdhan: true,
+      );
+    } catch (error) {
+      debugPrint('Erinnerungen konnten nicht geplant werden: $error');
+    }
   }
 
   Future<void> close() => repository.close();

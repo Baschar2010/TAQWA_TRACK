@@ -1,113 +1,287 @@
 import 'package:flutter/material.dart';
-import 'package:qr_flutter/qr_flutter.dart';
 
 import 'app_controller.dart';
-import 'domain.dart';
+import 'language.dart';
 import 'theme.dart';
 
-/// Inhalt des persönlichen QR-Codes zur Kopplung.
-String profileQrPayload(String code, String name) =>
-    'TAQWA-TRACK:$code:$name';
-
-class ProfileQrCard extends StatelessWidget {
-  const ProfileQrCard({
-    super.key,
-    required this.code,
-    required this.name,
-    this.size = 170,
-  });
-  final String code;
-  final String name;
-  final double size;
-
-  @override
-  Widget build(BuildContext context) => Column(
-    children: [
-      Container(
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: QrImageView(
-          data: profileQrPayload(code, name),
-          version: QrVersions.auto,
-          size: size,
-          backgroundColor: Colors.white,
-          eyeStyle: const QrEyeStyle(
-            eyeShape: QrEyeShape.square,
-            color: Color(0xFF151515),
-          ),
-          dataModuleStyle: const QrDataModuleStyle(
-            dataModuleShape: QrDataModuleShape.square,
-            color: Color(0xFF151515),
-          ),
-        ),
-      ),
-      const SizedBox(height: 8),
-      Text(
-        'Kopplungscode',
-        style: const TextStyle(color: TaqwaColors.muted, fontSize: 8),
-      ),
-      const SizedBox(height: 2),
-      Text(
-        code,
-        style: const TextStyle(
-          color: TaqwaColors.goldLight,
-          fontSize: 18,
-          fontWeight: FontWeight.w800,
-          letterSpacing: 4,
-        ),
-      ),
-    ],
-  );
-}
-
+/// Willkommens-Setup beim ersten Start: Name und Sprache.
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key, required this.controller});
   final TaqwaController controller;
+
   @override
   State<OnboardingScreen> createState() => _OnboardingScreenState();
 }
 
 class _OnboardingScreenState extends State<OnboardingScreen> {
-  final _controller = TextEditingController();
-  String? _code;
+  final _name = TextEditingController();
+  late String _language =
+      widget.controller.settings?.language ?? 'de';
   bool _saving = false;
+  String? _error;
 
   @override
   void dispose() {
-    _controller.dispose();
+    _name.dispose();
     super.dispose();
   }
 
-  void _next() {
-    final name = _controller.text.trim();
-    if (name.isEmpty) return;
-    FocusScope.of(context).unfocus();
-    setState(() => _code = generateProfileCode());
+  Future<void> _finish() async {
+    final name = _name.text.trim();
+    if (name.isEmpty) {
+      setState(() => _error = AppText.of(_language).nameHint);
+      return;
+    }
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    await widget.controller.completeOnboarding(
+      name: name,
+      language: _language,
+    );
   }
 
-  Future<void> _finish() async {
-    setState(() => _saving = true);
-    await widget.controller.completeOnboarding(
-      _controller.text.trim(),
-      code: _code,
+  Future<void> _pickLanguage() async {
+    final picked = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: TaqwaColors.card,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
+      ),
+      builder: (sheetContext) => _LanguageSheet(current: _language),
     );
+    if (picked != null) setState(() => _language = picked);
   }
 
   @override
   Widget build(BuildContext context) {
-    final code = _code;
+    final text = AppText.of(_language);
+    final language = languageFor(_language);
+    final rtl = language.isRtl;
     return Scaffold(
       body: StarField(
         child: SafeArea(
-          child: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(18),
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 460),
-                child: code == null ? _nameStep() : _qrStep(code),
+          child: Directionality(
+            textDirection: rtl ? TextDirection.rtl : TextDirection.ltr,
+            child: Center(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(20, 24, 20, 28),
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 440),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Center(
+                        child: Container(
+                          width: 78,
+                          height: 78,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            gradient: const LinearGradient(
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
+                              colors: [
+                                Color(0xFF3A2A11),
+                                Color(0xFF17130C),
+                              ],
+                            ),
+                            border: Border.all(
+                              color: TaqwaColors.gold,
+                              width: 1.6,
+                            ),
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Color(0x44E5A93C),
+                                blurRadius: 28,
+                                spreadRadius: 3,
+                              ),
+                            ],
+                          ),
+                          child: const Icon(
+                            Icons.mosque,
+                            color: TaqwaColors.goldLight,
+                            size: 38,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      const Center(
+                        child: Text(
+                          'TAQWA TRACK',
+                          style: TextStyle(
+                            color: TaqwaColors.gold,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 5,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        text.welcome,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 23,
+                          fontWeight: FontWeight.w800,
+                          height: 1.25,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        text.tagline,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: TaqwaColors.muted,
+                          fontSize: 11,
+                          height: 1.5,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      TaqwaCard(
+                        child: Column(
+                          children: [
+                            _Feature(
+                              icon: Icons.wifi_off_rounded,
+                              text: text.featureOffline,
+                            ),
+                            const SizedBox(height: 9),
+                            _Feature(
+                              icon: Icons.menu_book_outlined,
+                              text: text.featureQuran,
+                            ),
+                            const SizedBox(height: 9),
+                            _Feature(
+                              icon: Icons.qr_code_2,
+                              text: text.featureFamily,
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      Eyebrow(text.nameLabel),
+                      const SizedBox(height: 7),
+                      TextField(
+                        key: const ValueKey('onboarding-name'),
+                        controller: _name,
+                        textInputAction: TextInputAction.done,
+                        onSubmitted: (_) => _finish(),
+                        decoration: InputDecoration(
+                          hintText: text.nameHint,
+                          prefixIcon: const Icon(
+                            Icons.person_outline,
+                            size: 18,
+                            color: TaqwaColors.gold,
+                          ),
+                          errorText: _error,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Eyebrow(text.languageLabel),
+                      const SizedBox(height: 7),
+                      InkWell(
+                        key: const ValueKey('onboarding-language'),
+                        borderRadius: BorderRadius.circular(12),
+                        onTap: _pickLanguage,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 12,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF141311),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: TaqwaColors.border),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.language,
+                                size: 18,
+                                color: TaqwaColors.gold,
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  language.nativeName,
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                              Text(
+                                language.englishName,
+                                style: const TextStyle(
+                                  color: TaqwaColors.muted,
+                                  fontSize: 9,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              const Icon(
+                                Icons.expand_more,
+                                size: 18,
+                                color: TaqwaColors.muted,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 22),
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton(
+                          key: const ValueKey('onboarding-start'),
+                          onPressed: _saving ? null : _finish,
+                          style: FilledButton.styleFrom(
+                            backgroundColor: TaqwaColors.gold,
+                            foregroundColor: const Color(0xFF17120A),
+                            padding: const EdgeInsets.symmetric(vertical: 15),
+                          ),
+                          child: _saving
+                              ? const SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Color(0xFF17120A),
+                                  ),
+                                )
+                              : Text(
+                                  text.start,
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(
+                            Icons.lock_outline,
+                            size: 12,
+                            color: TaqwaColors.muted,
+                          ),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              text.privacyNote,
+                              style: const TextStyle(
+                                color: TaqwaColors.muted,
+                                fontSize: 8,
+                                height: 1.5,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
           ),
@@ -115,365 +289,166 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       ),
     );
   }
+}
 
-  Widget _nameStep() => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      const Center(
-        child: Icon(
-          Icons.nightlight_round,
-          color: TaqwaColors.goldLight,
-          size: 42,
-        ),
-      ),
-      const SizedBox(height: 14),
-      const Center(
-        child: Text(
-          'TAQWA TRACK',
-          style: TextStyle(
-            color: TaqwaColors.goldLight,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 3,
-            fontSize: 18,
-          ),
-        ),
-      ),
-      const SizedBox(height: 6),
-      const Center(
-        child: Text(
-          'Willkommen! Wie dürfen wir dich nennen?',
-          textAlign: TextAlign.center,
-          style: TextStyle(color: TaqwaColors.muted, fontSize: 11),
-        ),
-      ),
-      const SizedBox(height: 22),
-      TaqwaCard(
-        goldBorder: true,
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Eyebrow('DEIN NAME', color: TaqwaColors.gold),
-            const SizedBox(height: 8),
-            TextField(
-              controller: _controller,
-              autofocus: true,
-              textInputAction: TextInputAction.done,
-              onSubmitted: (_) => _next(),
-              style: const TextStyle(fontSize: 13),
-              decoration: const InputDecoration(
-                hintText: 'z. B. Hamza',
-                prefixIcon: Icon(
-                  Icons.person_outline,
-                  size: 18,
-                  color: TaqwaColors.gold,
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: _next,
-                style: FilledButton.styleFrom(
-                  backgroundColor: TaqwaColors.gold,
-                  foregroundColor: const Color(0xFF17120A),
-                  padding: const EdgeInsets.symmetric(vertical: 13),
-                ),
-                child: const Text(
-                  'Weiter',
-                  style: TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-      const SizedBox(height: 10),
-      const Center(
-        child: Text(
-          'Dein Name und dein persönlicher QR-Code bleiben auf diesem Gerät.',
-          textAlign: TextAlign.center,
-          style: TextStyle(color: TaqwaColors.muted, fontSize: 8),
-        ),
-      ),
-    ],
-  );
+class _Feature extends StatelessWidget {
+  const _Feature({required this.icon, required this.text});
+  final IconData icon;
+  final String text;
 
-  Widget _qrStep(String code) => Column(
+  @override
+  Widget build(BuildContext context) => Row(
     children: [
-      const SizedBox(height: 6),
-      const Eyebrow('DEIN PERSÖNLICHER QR-CODE', color: TaqwaColors.gold),
-      const SizedBox(height: 6),
-      Text(
-        'As-salāmu ʿalaykum, ${_controller.text.trim()}',
-        textAlign: TextAlign.center,
-        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700),
-      ),
-      const SizedBox(height: 4),
-      const Text(
-        'Mit diesem Code verbindet dich deine Familie einmalig.',
-        textAlign: TextAlign.center,
-        style: TextStyle(color: TaqwaColors.muted, fontSize: 9),
-      ),
-      const SizedBox(height: 16),
-      TaqwaCard(
-        goldBorder: true,
-        padding: const EdgeInsets.all(16),
-        child: ProfileQrCard(
-          code: code,
-          name: _controller.text.trim(),
+      Container(
+        width: 28,
+        height: 28,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: const Color(0xFF211A0D),
+          border: Border.all(color: TaqwaColors.border),
         ),
+        child: Icon(icon, size: 14, color: TaqwaColors.goldLight),
       ),
-      const SizedBox(height: 16),
-      SizedBox(
-        width: double.infinity,
-        child: FilledButton(
-          onPressed: _saving ? null : _finish,
-          style: FilledButton.styleFrom(
-            backgroundColor: TaqwaColors.gold,
-            foregroundColor: const Color(0xFF17120A),
-            padding: const EdgeInsets.symmetric(vertical: 13),
-          ),
-          child: Text(
-            _saving ? 'Einen Moment …' : 'Los geht’s',
-            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 12),
-          ),
+      const SizedBox(width: 9),
+      Expanded(
+        child: Text(
+          text,
+          style: const TextStyle(fontSize: 10, height: 1.4),
         ),
       ),
     ],
   );
 }
 
-/// Kopplungsbereich im Family-Tab: eigener QR-Code, Code-Eingabe und
-/// Liste der verknüpften Partner.
-class PartnerSection extends StatelessWidget {
-  const PartnerSection({super.key, required this.controller});
-  final TaqwaController controller;
+class _LanguageSheet extends StatefulWidget {
+  const _LanguageSheet({required this.current});
+  final String current;
+
+  @override
+  State<_LanguageSheet> createState() => _LanguageSheetState();
+}
+
+class _LanguageSheetState extends State<_LanguageSheet> {
+  String _query = '';
 
   @override
   Widget build(BuildContext context) {
-    final code = controller.settings?.profileId ?? '';
-    final name = controller.settings?.name ?? '';
-    final partners = controller.partners;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SectionTitle('Kopplung', trailing: 'QR-Code'),
-        TaqwaCard(
-          goldBorder: true,
-          padding: const EdgeInsets.all(12),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    final visible = appLanguages.where((language) {
+      final q = _query.trim().toLowerCase();
+      if (q.isEmpty) return true;
+      return language.nativeName.toLowerCase().contains(q) ||
+          language.englishName.toLowerCase().contains(q) ||
+          language.code.contains(q);
+    }).toList();
+    return Padding(
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).viewInsets.bottom,
+      ),
+      child: SafeArea(
+        child: SizedBox(
+          height: MediaQuery.of(context).size.height * 0.72,
+          child: Column(
             children: [
-              if (code.isNotEmpty)
-                ProfileQrCard(code: code, name: name, size: 104),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+              const SizedBox(height: 10),
+              Container(
+                width: 38,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: TaqwaColors.border,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+              ),
+              const Padding(
+                padding: EdgeInsets.fromLTRB(16, 12, 16, 4),
+                child: Row(
                   children: [
-                    const Eyebrow('DEIN PROFIL', color: TaqwaColors.gold),
-                    const SizedBox(height: 4),
+                    Icon(Icons.language, size: 16, color: TaqwaColors.gold),
+                    SizedBox(width: 8),
                     Text(
-                      name,
-                      style: const TextStyle(
-                        fontSize: 14,
+                      'Sprache wählen · Choose language',
+                      style: TextStyle(
+                        fontSize: 13,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
-                    const SizedBox(height: 3),
-                    const Text(
-                      'Lass deinen QR-Code einmalig von deinem Partner scannen – oder gib seinen Code hier ein.',
-                      style: TextStyle(
-                        color: TaqwaColors.muted,
-                        fontSize: 8,
-                        height: 1.4,
-                      ),
-                    ),
-                    const SizedBox(height: 9),
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        onPressed: () => _showLinkDialog(context, controller),
-                        icon: const Icon(Icons.link, size: 14),
-                        label: const Text(
-                          'Partner koppeln',
-                          style: TextStyle(fontSize: 10),
-                        ),
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: TaqwaColors.goldLight,
-                          side: const BorderSide(color: TaqwaColors.gold),
-                          padding: const EdgeInsets.symmetric(vertical: 8),
-                        ),
-                      ),
-                    ),
                   ],
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 6, 14, 6),
+                child: TextField(
+                  onChanged: (value) => setState(() => _query = value),
+                  style: const TextStyle(fontSize: 12),
+                  decoration: const InputDecoration(
+                    hintText: 'Suchen · Search …',
+                    prefixIcon: Icon(
+                      Icons.search,
+                      size: 17,
+                      color: TaqwaColors.gold,
+                    ),
+                    isDense: true,
+                  ),
+                ),
+              ),
+              Expanded(
+                child: ListView.separated(
+                  padding: const EdgeInsets.fromLTRB(10, 2, 10, 14),
+                  itemCount: visible.length,
+                  separatorBuilder: (_, _) =>
+                      const Divider(height: 1, color: Color(0xFF242220)),
+                  itemBuilder: (context, index) {
+                    final language = visible[index];
+                    final selected = language.code == widget.current;
+                    return ListTile(
+                      dense: true,
+                      onTap: () => Navigator.pop(context, language.code),
+                      leading: SizedBox(
+                        width: 28,
+                        child: Text(
+                          language.code.toUpperCase(),
+                          style: TextStyle(
+                            color: selected
+                                ? TaqwaColors.goldLight
+                                : TaqwaColors.muted,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                      title: Text(
+                        language.nativeName,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: selected
+                              ? FontWeight.w700
+                              : FontWeight.w500,
+                          color: selected
+                              ? TaqwaColors.goldLight
+                              : TaqwaColors.text,
+                        ),
+                      ),
+                      subtitle: Text(
+                        language.englishName,
+                        style: const TextStyle(
+                          fontSize: 8,
+                          color: TaqwaColors.muted,
+                        ),
+                      ),
+                      trailing: selected
+                          ? const Icon(
+                              Icons.check_circle,
+                              size: 16,
+                              color: TaqwaColors.gold,
+                            )
+                          : null,
+                    );
+                  },
                 ),
               ),
             ],
           ),
         ),
-        if (partners.isNotEmpty) ...[
-          const SizedBox(height: 8),
-          for (final partner in partners)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 6),
-              child: TaqwaCard(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 8,
-                ),
-                child: Row(
-                  children: [
-                    CircleAvatar(
-                      radius: 12,
-                      backgroundColor: const Color(0xFF251C0E),
-                      foregroundColor: TaqwaColors.goldLight,
-                      child: Text(
-                        initials(partner.name),
-                        style: const TextStyle(fontSize: 10),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            partner.name,
-                            style: const TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          Text(
-                            'Gekoppelt · ${partner.code}',
-                            style: const TextStyle(
-                              color: TaqwaColors.muted,
-                              fontSize: 8,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    IconButton(
-                      tooltip: 'Kopplung lösen',
-                      onPressed: () => _confirmUnlink(
-                        context,
-                        controller,
-                        partner.id,
-                        partner.name,
-                      ),
-                      icon: const Icon(Icons.link_off, size: 15),
-                      color: TaqwaColors.muted,
-                      visualDensity: VisualDensity.compact,
-                      constraints: const BoxConstraints(
-                        minWidth: 28,
-                        minHeight: 28,
-                      ),
-                      padding: EdgeInsets.zero,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-        ],
-      ],
-    );
-  }
-
-  Future<void> _showLinkDialog(
-    BuildContext context,
-    TaqwaController controller,
-  ) async {
-    final codeController = TextEditingController();
-    final nameController = TextEditingController();
-    final linked = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: TaqwaColors.card,
-        title: const Text('Partner koppeln', style: TextStyle(fontSize: 15)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: codeController,
-              autofocus: true,
-              textCapitalization: TextCapitalization.characters,
-              decoration: const InputDecoration(
-                labelText: 'Kopplungscode',
-                hintText: 'z. B. K7QF2M',
-              ),
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: nameController,
-              decoration: const InputDecoration(
-                labelText: 'Name (optional)',
-                hintText: 'z. B. Aisha',
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Abbrechen'),
-          ),
-          FilledButton(
-            onPressed: () async {
-              final ok = await controller.linkPartner(
-                codeController.text,
-                nameController.text,
-              );
-              if (dialogContext.mounted) Navigator.pop(dialogContext, ok);
-            },
-            child: const Text('Verbinden'),
-          ),
-        ],
       ),
     );
-    codeController.dispose();
-    nameController.dispose();
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            linked == true
-                ? 'Partner erfolgreich gekoppelt.'
-                : 'Kopplung fehlgeschlagen – Code prüfen.',
-          ),
-          duration: const Duration(seconds: 2),
-        ),
-      );
-    }
-  }
-
-  Future<void> _confirmUnlink(
-    BuildContext context,
-    TaqwaController controller,
-    int id,
-    String name,
-  ) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: TaqwaColors.card,
-        title: const Text('Kopplung lösen?', style: TextStyle(fontSize: 15)),
-        content: Text('Die Verbindung zu $name wird entfernt.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Abbrechen'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Lösen'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed == true) await controller.unlinkPartner(id);
   }
 }

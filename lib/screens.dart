@@ -7,12 +7,15 @@ import 'package:hijri/hijri_calendar.dart';
 import 'package:intl/intl.dart';
 
 import 'app_controller.dart';
-import 'data/taqwa_repository.dart';
 import 'domain.dart';
 import 'hadith_screen.dart';
+import 'info_screens.dart';
+import 'language.dart';
 import 'onboarding_screen.dart';
+import 'pairing_screen.dart';
 import 'prayer_qibla_screens.dart';
 import 'quran_screen.dart';
+import 'tasbih_screen.dart';
 import 'theme.dart';
 
 class MainShell extends StatefulWidget {
@@ -51,6 +54,7 @@ class _MainShellState extends State<MainShell> {
       if (!c.settings!.onboarded) {
         return OnboardingScreen(controller: c);
       }
+      final text = AppText.of(Localizations.localeOf(context).languageCode);
       final pages = <Widget>[
         CalendarScreen(controller: c),
         _showMotivation
@@ -67,66 +71,313 @@ class _MainShellState extends State<MainShell> {
         PrayerTimesScreen(controller: c),
         QiblaScreen(controller: c),
       ];
-      return Scaffold(
-        extendBody: true,
-        body: StarField(
-          child: SafeArea(
-            bottom: false,
-            child: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 520),
-                child: IndexedStack(
-                  index: _showMotivation ? 1 : _tab,
-                  children: pages,
+      return Stack(
+        children: [
+          Scaffold(
+            extendBody: true,
+            body: StarField(
+              child: SafeArea(
+                bottom: false,
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 520),
+                    child: IndexedStack(
+                      index: _showMotivation ? 1 : _tab,
+                      children: pages,
+                    ),
+                  ),
                 ),
               ),
             ),
+            bottomNavigationBar: NavigationBar(
+              selectedIndex: _tab,
+              onDestinationSelected: (i) => setState(() {
+                _tab = i;
+                _showMotivation = false;
+              }),
+              backgroundColor: const Color(0xF5101010),
+              indicatorColor: const Color(0xFF332510),
+              height: 60,
+              labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+              destinations: [
+                NavigationDestination(
+                  icon: const Icon(Icons.calendar_month_outlined),
+                  selectedIcon: const Icon(Icons.calendar_month),
+                  label: text.navCalendar,
+                ),
+                NavigationDestination(
+                  icon: const Icon(Icons.home_outlined),
+                  selectedIcon: const Icon(Icons.home),
+                  label: text.navHome,
+                ),
+                NavigationDestination(
+                  icon: const Icon(Icons.family_restroom_outlined),
+                  selectedIcon: const Icon(Icons.family_restroom),
+                  label: text.navFamily,
+                ),
+                NavigationDestination(
+                  icon: const Icon(Icons.mosque_outlined),
+                  selectedIcon: const Icon(Icons.mosque),
+                  label: text.navPrayer,
+                ),
+                NavigationDestination(
+                  icon: const Icon(Icons.explore_outlined),
+                  selectedIcon: const Icon(Icons.explore),
+                  label: text.navQibla,
+                ),
+              ],
+            ),
           ),
-        ),
-        bottomNavigationBar: NavigationBar(
-          selectedIndex: _tab,
-          onDestinationSelected: (i) => setState(() {
-            _tab = i;
-            _showMotivation = false;
-          }),
-          backgroundColor: const Color(0xF5101010),
-          indicatorColor: const Color(0xFF332510),
-          height: 60,
-          labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-          destinations: const [
-            NavigationDestination(
-              icon: Icon(Icons.calendar_month_outlined),
-              selectedIcon: Icon(Icons.calendar_month),
-              label: 'Kalender',
+          if (c.goldCelebrationPending)
+            Positioned.fill(
+              child: GoldCelebration(onDone: c.clearGoldCelebration),
             ),
-            NavigationDestination(
-              icon: Icon(Icons.home_outlined),
-              selectedIcon: Icon(Icons.home),
-              label: 'Home',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.family_restroom_outlined),
-              selectedIcon: Icon(Icons.family_restroom),
-              label: 'Family',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.mosque_outlined),
-              selectedIcon: Icon(Icons.mosque),
-              label: 'Gebete',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.explore_outlined),
-              selectedIcon: Icon(Icons.explore),
-              label: 'Qibla',
-            ),
-          ],
-        ),
+        ],
       );
     },
   );
 
   void _push(Widget page) =>
       Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => page));
+}
+
+/// Kurze Erfolgs-Animation, wenn der Tag von Grün auf Gold springt
+/// (alle fünf Gebete erledigt).
+class GoldCelebration extends StatefulWidget {
+  const GoldCelebration({super.key, required this.onDone});
+  final VoidCallback onDone;
+
+  @override
+  State<GoldCelebration> createState() => _GoldCelebrationState();
+}
+
+class _GoldCelebrationState extends State<GoldCelebration>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 2400),
+  )..addStatusListener((status) {
+      if (status == AnimationStatus.completed) widget.onDone();
+    });
+
+  @override
+  void initState() {
+    super.initState();
+    _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => IgnorePointer(
+    child: AnimatedBuilder(
+      animation: _controller,
+      builder: (context, _) {
+        final t = _controller.value;
+        final appear = Curves.easeOutCubic.transform((t / 0.25).clamp(0.0, 1.0));
+        final fade = t < 0.78 ? 1.0 : 1 - ((t - 0.78) / 0.22);
+        final rise = Curves.easeOutCubic.transform(
+          ((t - 0.55) / 0.45).clamp(0.0, 1.0),
+        );
+        return Opacity(
+          opacity: fade.clamp(0.0, 1.0),
+          child: DecoratedBox(
+            decoration: const BoxDecoration(
+              gradient: RadialGradient(
+                colors: [Color(0xE6B8862C), Color(0xF00A0906)],
+                radius: 0.9,
+              ),
+            ),
+            child: Center(
+              child: Transform.translate(
+                offset: Offset(0, -30 * rise),
+                child: Transform.scale(
+                  scale: 0.7 + 0.3 * appear,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 108,
+                        height: 108,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          gradient: const LinearGradient(
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                            colors: [
+                              TaqwaColors.goldLight,
+                              TaqwaColors.gold,
+                            ],
+                          ),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Color(0x88E5A93C),
+                              blurRadius: 42,
+                              spreadRadius: 6,
+                            ),
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.star_rounded,
+                          size: 58,
+                          color: Color(0xFF241A08),
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      const Text(
+                        'GOLD',
+                        style: TextStyle(
+                          color: TaqwaColors.goldLight,
+                          fontSize: 34,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 8,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      const Text(
+                        '5 / 5 Gebete – Tag vollständig',
+                        style: TextStyle(
+                          color: TaqwaColors.text,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      const Text(
+                        'Möge Allah deine Gebete annehmen.',
+                        style: TextStyle(
+                          color: Color(0xCCF4F1E9),
+                          fontSize: 10,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    ),
+  );
+}
+
+/// Tagesgenauer Countdown bis zum Beginn des Ramadan.
+class RamadanCountdownCard extends StatelessWidget {
+  const RamadanCountdownCard({super.key, required this.now});
+  final DateTime now;
+
+  @override
+  Widget build(BuildContext context) {
+    final hijri = HijriCalendar.fromDate(now);
+    final running = hijri.hMonth == 9;
+    final start = nextRamadanStart(now);
+    final today = DateTime(now.year, now.month, now.day);
+    final days = start.difference(today).inDays;
+    final dateLabel = DateFormat('d. MMMM yyyy', 'de_DE').format(start);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 12),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        gradient: const LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFF2A2110), Color(0xFF141210)],
+        ),
+        border: Border.all(color: const Color(0xFF4A3A1B)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x22000000),
+            blurRadius: 16,
+            offset: Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 46,
+            height: 46,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: const Color(0xFF1D170D),
+              border: Border.all(color: TaqwaColors.gold),
+            ),
+            child: const Icon(
+              Icons.nightlight_round,
+              color: TaqwaColors.goldLight,
+              size: 22,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Eyebrow(
+                  running ? 'RAMADAN · TAG ${hijri.hDay}' : 'RAMADAN-COUNTDOWN',
+                  color: TaqwaColors.gold,
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  running
+                      ? 'Ramadan läuft'
+                      : days == 0
+                      ? 'Ramadan beginnt heute'
+                      : days == 1
+                      ? 'Noch 1 Tag'
+                      : 'Noch $days Tage',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: TaqwaColors.goldLight,
+                    height: 1.15,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  running
+                      ? 'Möge Allah dein Fasten annehmen.'
+                      : 'Beginn: $dateLabel',
+                  style: const TextStyle(
+                    color: TaqwaColors.muted,
+                    fontSize: 9,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (!running)
+            Column(
+              children: [
+                Text(
+                  '$days',
+                  style: const TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.w900,
+                    color: TaqwaColors.text,
+                    height: 1,
+                  ),
+                ),
+                const Text(
+                  'TAGE',
+                  style: TextStyle(
+                    color: TaqwaColors.muted,
+                    fontSize: 7,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
 }
 
 class HomeScreen extends StatefulWidget {
@@ -181,6 +432,7 @@ class _HomeScreenState extends State<HomeScreen> {
         : c.schedule!.times[next]!;
     final remaining = target.difference(date);
     final lv = levelForXp(settings.xp);
+    final text = AppText.of(Localizations.localeOf(context).languageCode);
     return ListView(
       padding: const EdgeInsets.fromLTRB(14, 10, 14, 92),
       children: [
@@ -189,7 +441,9 @@ class _HomeScreenState extends State<HomeScreen> {
           initial: initials(settings.name),
           onProfile: widget.onProfile,
         ),
-        const SizedBox(height: 15),
+        const SizedBox(height: 12),
+        RamadanCountdownCard(now: date),
+        const SizedBox(height: 12),
         Row(
           children: [
             Expanded(
@@ -197,7 +451,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'As-salāmu ʿalaykum, ${settings.name}',
+                    text.greeting,
                     style: const TextStyle(
                       fontWeight: FontWeight.w700,
                       fontSize: 15,
@@ -431,7 +685,9 @@ class _HomeScreenState extends State<HomeScreen> {
           child: InkWell(
             borderRadius: BorderRadius.circular(14),
             onTap: () => Navigator.of(context).push(
-              MaterialPageRoute<void>(builder: (_) => const QuranScreen()),
+              MaterialPageRoute<void>(
+                builder: (_) => QuranScreen(controller: widget.controller),
+              ),
             ),
             child: Padding(
               padding: const EdgeInsets.all(11),
@@ -460,6 +716,60 @@ class _HomeScreenState extends State<HomeScreen> {
                         Text(
                           '114 Suren lesen',
                           style: TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Icon(
+                    Icons.chevron_right,
+                    size: 18,
+                    color: TaqwaColors.goldLight,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        TaqwaCard(
+          padding: EdgeInsets.zero,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(14),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => TasbihScreen(controller: c),
+              ),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(11),
+              child: Row(
+                children: [
+                  Container(
+                    width: 34,
+                    height: 34,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: TaqwaColors.gold),
+                      color: const Color(0xFF211A0D),
+                    ),
+                    child: const Icon(
+                      Icons.fingerprint,
+                      color: TaqwaColors.goldLight,
+                      size: 18,
+                    ),
+                  ),
+                  const SizedBox(width: 9),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Eyebrow('TASBIH'),
+                        Text(
+                          'Dhikr zählen · ${settings.tasbihCount}/${settings.tasbihTarget}',
+                          style: const TextStyle(
                             fontWeight: FontWeight.w700,
                             fontSize: 12,
                           ),
@@ -1097,13 +1407,6 @@ class _FamilyScreenState extends State<FamilyScreen> {
   @override
   Widget build(BuildContext context) {
     final c = widget.controller;
-    final combined = c.family.fold<int>(
-      0,
-      (sum, member) =>
-          sum +
-          (c.familyPrayers[member.id]?.values.where((v) => v).length ?? 0),
-    );
-    final max = c.family.length * Prayer.values.length;
     return ListView(
       padding: const EdgeInsets.fromLTRB(14, 10, 14, 90),
       children: [
@@ -1117,302 +1420,34 @@ class _FamilyScreenState extends State<FamilyScreen> {
           ),
         ),
         const SizedBox(height: 14),
-        TaqwaCard(
+        const TaqwaCard(
           goldBorder: true,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Eyebrow('GEMEINSAM STÄRKER'),
-              const SizedBox(height: 3),
-              const Text(
+              Eyebrow('GEMEINSAM STÄRKER'),
+              SizedBox(height: 3),
+              Text(
                 'Family',
                 style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
               ),
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(11),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1C1912),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: TaqwaColors.border),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.home, color: TaqwaColors.gold, size: 17),
-                    const SizedBox(width: 9),
-                    const Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Familie Hassini',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 11,
-                            ),
-                          ),
-                          Text(
-                            'Deine Familie auf diesem Gerät',
-                            style: TextStyle(
-                              color: TaqwaColors.muted,
-                              fontSize: 9,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Text(
-                      '${c.family.length} Mitglieder',
-                      style: const TextStyle(
-                        color: TaqwaColors.goldLight,
-                        fontSize: 9,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 13),
-              Row(
-                children: [
-                  const Expanded(child: Eyebrow('HEUTE ZUSAMMEN')),
-                  Text(
-                    '$combined / $max Gebete',
-                    style: const TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 7),
-              LinearProgressIndicator(
-                value: max == 0 ? 0 : combined / max,
-                minHeight: 5,
-                borderRadius: BorderRadius.circular(6),
-                backgroundColor: TaqwaColors.border,
-                color: TaqwaColors.gold,
-              ),
-              const SizedBox(height: 6),
+              SizedBox(height: 5),
               Text(
-                c.family.isEmpty
-                    ? 'Füge Familienmitglieder hinzu, um euren gemeinsamen Fortschritt hier zu sehen.'
-                    : 'Alle Einträge bleiben lokal auf diesem Gerät.',
-                style: const TextStyle(color: TaqwaColors.muted, fontSize: 9),
+                'Einmal scannen – danach seht ihr eure Gebete, Standard-Habits '
+                'und euren Streak gegenseitig. Ohne Konto, ohne Server.',
+                style: TextStyle(
+                  color: TaqwaColors.muted,
+                  fontSize: 9,
+                  height: 1.5,
+                ),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 12),
-        SectionTitle('Wer hat heute gebetet?', trailing: 'F  D  A  M  I'),
-        if (c.family.isEmpty)
-          TaqwaCard(
-            child: Column(
-              children: [
-                const Icon(
-                  Icons.group_add_outlined,
-                  color: TaqwaColors.gold,
-                  size: 28,
-                ),
-                const SizedBox(height: 7),
-                const Text(
-                  'Noch keine Mitglieder',
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
-                ),
-                const SizedBox(height: 4),
-                const Text(
-                  'Lege lokale Profile für deine Familie an.',
-                  style: TextStyle(fontSize: 9, color: TaqwaColors.muted),
-                ),
-                const SizedBox(height: 10),
-                FilledButton.icon(
-                  onPressed: _addMember,
-                  icon: const Icon(Icons.add, size: 15),
-                  label: const Text('Mitglied hinzufügen'),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: TaqwaColors.gold,
-                    foregroundColor: const Color(0xFF17120A),
-                  ),
-                ),
-              ],
-            ),
-          )
-        else ...[
-          for (final member in c.family)
-            _FamilyRow(controller: c, member: member),
-          const SizedBox(height: 10),
-          OutlinedButton.icon(
-            onPressed: _addMember,
-            icon: const Icon(Icons.person_add_alt_1, size: 16),
-            label: const Text('Mitglied hinzufügen'),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: TaqwaColors.goldLight,
-              side: const BorderSide(color: TaqwaColors.border),
-            ),
-          ),
-        ],
         const SizedBox(height: 12),
         PartnerSection(controller: c),
-        const SizedBox(height: 12),
-        const TaqwaCard(
-          child: Row(
-            children: [
-              Icon(Icons.lock_outline, color: TaqwaColors.muted, size: 14),
-              SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  'Family-Fortschritt wird nur auf diesem Gerät gespeichert. Es gibt keine Cloud-Synchronisierung.',
-                  style: TextStyle(fontSize: 9, color: TaqwaColors.muted),
-                ),
-              ),
-            ],
-          ),
-        ),
       ],
     );
-  }
-
-  Future<void> _addMember() async {
-    final input = TextEditingController();
-    final name = await showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: TaqwaColors.card,
-        title: const Text('Familienmitglied hinzufügen'),
-        content: TextField(
-          controller: input,
-          autofocus: true,
-          decoration: const InputDecoration(labelText: 'Name'),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Abbrechen'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, input.text),
-            child: const Text('Hinzufügen'),
-          ),
-        ],
-      ),
-    );
-    input.dispose();
-    if (name != null) await widget.controller.addFamilyMember(name);
-  }
-}
-
-class _FamilyRow extends StatelessWidget {
-  const _FamilyRow({required this.controller, required this.member});
-  final TaqwaController controller;
-  final FamilyMember member;
-
-  @override
-  Widget build(BuildContext context) {
-    final statuses =
-        controller.familyPrayers[member.id] ?? const <String, bool>{};
-    final done = statuses.values.where((v) => v).length;
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 7),
-      child: TaqwaCard(
-        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 8),
-        child: Row(
-          children: [
-            CircleAvatar(
-              radius: 13,
-              backgroundColor: const Color(0xFF251C0E),
-              foregroundColor: TaqwaColors.goldLight,
-              child: Text(
-                initials(member.name),
-                style: const TextStyle(fontSize: 10),
-              ),
-            ),
-            const SizedBox(width: 7),
-            SizedBox(
-              width: 50,
-              child: Text(
-                member.name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 9,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-            Expanded(
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  for (final prayer in Prayer.values)
-                    InkWell(
-                      onTap: () => controller.toggleFamilyPrayer(
-                        member.id,
-                        prayer,
-                        !(statuses[prayer.name] ?? false),
-                      ),
-                      borderRadius: BorderRadius.circular(5),
-                      child: Container(
-                        width: 17,
-                        height: 17,
-                        decoration: BoxDecoration(
-                          color: statuses[prayer.name] == true
-                              ? TaqwaColors.green
-                              : const Color(0xFF242622),
-                          borderRadius: BorderRadius.circular(5),
-                        ),
-                        child: statuses[prayer.name] == true
-                            ? const Icon(
-                                Icons.check,
-                                size: 12,
-                                color: Colors.white,
-                              )
-                            : null,
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 6),
-            Text(
-              '$done/5',
-              style: const TextStyle(fontSize: 8, color: TaqwaColors.muted),
-            ),
-            IconButton(
-              tooltip: 'Mitglied löschen',
-              onPressed: () => _confirmDelete(context),
-              icon: const Icon(Icons.delete_outline, size: 15),
-              color: TaqwaColors.muted,
-              visualDensity: VisualDensity.compact,
-              constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-              padding: EdgeInsets.zero,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _confirmDelete(BuildContext context) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        backgroundColor: TaqwaColors.card,
-        title: const Text('Mitglied löschen?', style: TextStyle(fontSize: 15)),
-        content: Text(
-          '${member.name} und alle gespeicherten Gebete dieses Profils werden entfernt.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Abbrechen'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Löschen'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed == true) await controller.removeFamilyMember(member.id);
   }
 }
 
@@ -1626,13 +1661,30 @@ class ProfileScreen extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          const SectionTitle('MEINE DATEN'),
-          _SettingsTile(
-            icon: Icons.person_outline,
-            title: 'Persönliche Daten',
-            subtitle: 'Name und Profil bearbeiten',
-            onTap: () => _editName(context),
+          const SectionTitle('DEIN QR-CODE', trailing: 'Family-Kopplung'),
+          TaqwaCard(
+            child: Column(
+              children: [
+                ProfileQrCard(
+                  snapshot: controller.profileSnapshot,
+                  size: 150,
+                ),
+                const SizedBox(height: 4),
+                const Text(
+                  'Zeige diesen Code deinem Familienmitglied – ein Scan '
+                  'genügt, um euren Fortschritt zu teilen.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: TaqwaColors.muted,
+                    fontSize: 9,
+                    height: 1.5,
+                  ),
+                ),
+              ],
+            ),
           ),
+          const SizedBox(height: 12),
+          const SectionTitle('MEINE DATEN'),
           _SettingsTile(
             icon: Icons.flag_outlined,
             title: 'Gebetszeiten & Standort',
@@ -1646,7 +1698,7 @@ class ProfileScreen extends StatelessWidget {
           _SettingsTile(
             icon: Icons.tune,
             title: 'Einstellungen',
-            subtitle: 'Berechnungsmethode und Madhab',
+            subtitle: 'Sprache, OLED, Adhan, Berechnung',
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute<void>(
                 builder: (_) => SettingsScreen(controller: controller),
@@ -1656,62 +1708,45 @@ class ProfileScreen extends StatelessWidget {
           _SettingsTile(
             icon: Icons.notifications_none,
             title: 'Benachrichtigungen',
-            subtitle: 'Gebetserinnerungen',
-            onTap: () => _message(
-              context,
-              'Benachrichtigungen lassen sich in den Geräteeinstellungen verwalten.',
+            subtitle: 'Gebetserinnerungen und Adhan',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => SettingsScreen(controller: controller),
+              ),
             ),
           ),
           _SettingsTile(
-            icon: Icons.lock_outline,
-            title: 'Daten & Privatsphäre',
-            subtitle: 'Alle Daten bleiben auf diesem Gerät',
-            onTap: () => _message(
-              context,
-              'TAQWA TRACK verwendet keine Cloud und sendet keine persönlichen Daten.',
+            icon: Icons.privacy_tip_outlined,
+            title: 'Datenschutz & Privatsphäre',
+            subtitle: 'Offizielle Datenschutzerklärung',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const PrivacyPolicyScreen(),
+              ),
             ),
           ),
           _SettingsTile(
             icon: Icons.help_outline,
             title: 'Hilfe & Support',
-            subtitle: 'Informationen zur App',
+            subtitle: 'FAQ und Kontakt zum Entwickler',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const FaqScreen()),
+            ),
+          ),
+          _SettingsTile(
+            icon: Icons.info_outline,
+            title: 'Über TAQWA TRACK',
+            subtitle: 'Version 1.4.0 · Offline-First',
             onTap: () => _message(
               context,
-              'TAQWA TRACK · Offline-Gebets- und Habit-Tracker',
+              'TAQWA TRACK · Version 1.4.0\nOffline-Gebets-, Habit- und '
+              'Familien-Tracker.\nKontakt: $supportEmail',
             ),
           ),
         ],
       ),
     ),
   );
-
-  Future<void> _editName(BuildContext context) async {
-    final field = TextEditingController(text: controller.settings!.name);
-    final name = await showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: TaqwaColors.card,
-        title: const Text('Name bearbeiten'),
-        content: TextField(
-          controller: field,
-          autofocus: true,
-          decoration: const InputDecoration(labelText: 'Dein Name'),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Abbrechen'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, field.text),
-            child: const Text('Speichern'),
-          ),
-        ],
-      ),
-    );
-    field.dispose();
-    if (name != null) await controller.updateName(name);
-  }
 
   void _message(BuildContext context, String text) =>
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
@@ -1732,6 +1767,117 @@ class SettingsScreen extends StatelessWidget {
         child: ListView(
           padding: const EdgeInsets.all(15),
           children: [
+            const Eyebrow('DARSTELLUNG & SPRACHE'),
+            const SizedBox(height: 8),
+            TaqwaCard(
+              child: Column(
+                children: [
+                  DropdownButtonFormField<String>(
+                    initialValue: settings.language,
+                    decoration: const InputDecoration(labelText: 'Sprache'),
+                    items: [
+                      for (final language in appLanguages)
+                        DropdownMenuItem(
+                          value: language.code,
+                          child: Text(
+                            '${language.nativeName} · ${language.englishName}',
+                            style: const TextStyle(fontSize: 12),
+                          ),
+                        ),
+                    ],
+                    onChanged: (value) {
+                      if (value != null) controller.setLanguage(value);
+                    },
+                  ),
+                  SwitchListTile.adaptive(
+                    contentPadding: EdgeInsets.zero,
+                    value: settings.oled,
+                    activeThumbColor: TaqwaColors.gold,
+                    title: const Text(
+                      'OLED-Schwarzmodus',
+                      style: TextStyle(fontSize: 11),
+                    ),
+                    subtitle: const Text(
+                      'Echtes Schwarz statt Dunkelgrau',
+                      style: TextStyle(fontSize: 9),
+                    ),
+                    onChanged: controller.setOled,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+            const Eyebrow('BENACHRICHTIGUNGEN'),
+            const SizedBox(height: 8),
+            TaqwaCard(
+              child: Column(
+                children: [
+                  SwitchListTile.adaptive(
+                    contentPadding: EdgeInsets.zero,
+                    value: settings.adhanEnabled,
+                    activeThumbColor: TaqwaColors.gold,
+                    title: const Text(
+                      'Gebets-Erinnerungen',
+                      style: TextStyle(fontSize: 11),
+                    ),
+                    subtitle: const Text(
+                      'Lokale Benachrichtigung mit Signalton',
+                      style: TextStyle(fontSize: 9),
+                    ),
+                    onChanged: (value) => controller.setAdhan(
+                      enabled: value,
+                      minutesBefore: settings.adhanMinutesBefore,
+                    ),
+                  ),
+                  if (settings.adhanEnabled)
+                    DropdownButtonFormField<int>(
+                      initialValue: settings.adhanMinutesBefore,
+                      decoration: const InputDecoration(
+                        labelText: 'Erinnern',
+                      ),
+                      items: const [
+                        DropdownMenuItem(value: 0, child: Text('Zur Gebetszeit')),
+                        DropdownMenuItem(
+                          value: 5,
+                          child: Text('5 Minuten vorher'),
+                        ),
+                        DropdownMenuItem(
+                          value: 10,
+                          child: Text('10 Minuten vorher'),
+                        ),
+                        DropdownMenuItem(
+                          value: 15,
+                          child: Text('15 Minuten vorher'),
+                        ),
+                        DropdownMenuItem(
+                          value: 30,
+                          child: Text('30 Minuten vorher'),
+                        ),
+                      ],
+                      onChanged: (value) {
+                        if (value != null) {
+                          controller.setAdhan(
+                            enabled: true,
+                            minutesBefore: value,
+                          );
+                        }
+                      },
+                    ),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Hinweis: Android kann Benachrichtigungen bei aktivierter '
+                    'Akku-Optimierung verzögern. Erlaube Benachrichtigungen in '
+                    'den Systemeinstellungen.',
+                    style: TextStyle(
+                      color: TaqwaColors.muted,
+                      fontSize: 8,
+                      height: 1.5,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
             const Eyebrow('GEBETSZEITEN'),
             const SizedBox(height: 8),
             TaqwaCard(

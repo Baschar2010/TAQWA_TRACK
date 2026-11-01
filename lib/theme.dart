@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 
 class TaqwaColors {
   static const background = Color(0xFF0B0B0B);
+  static const oledBackground = Color(0xFF000000);
+  static const oledCard = Color(0xFF060606);
   static const card = Color(0xFF151515);
   static const cardRaised = Color(0xFF1B1A17);
   static const border = Color(0xFF302D27);
@@ -16,25 +18,29 @@ class TaqwaColors {
   static const blueGreen = Color(0xFF173A32);
 }
 
-ThemeData taqwaTheme() => ThemeData(
+ThemeData taqwaTheme({bool oled = false}) => ThemeData(
   brightness: Brightness.dark,
-  scaffoldBackgroundColor: TaqwaColors.background,
-  colorScheme: const ColorScheme.dark(
+  scaffoldBackgroundColor: oled
+      ? TaqwaColors.oledBackground
+      : TaqwaColors.background,
+  colorScheme: ColorScheme.dark(
     primary: TaqwaColors.gold,
     secondary: TaqwaColors.green,
-    surface: TaqwaColors.card,
+    surface: oled ? TaqwaColors.oledCard : TaqwaColors.card,
     error: TaqwaColors.red,
   ),
   useMaterial3: true,
   fontFamily: 'Roboto',
-  appBarTheme: const AppBarTheme(
-    backgroundColor: TaqwaColors.background,
+  appBarTheme: AppBarTheme(
+    backgroundColor: oled
+        ? TaqwaColors.oledBackground
+        : TaqwaColors.background,
     foregroundColor: TaqwaColors.text,
     elevation: 0,
   ),
   inputDecorationTheme: InputDecorationTheme(
     filled: true,
-    fillColor: const Color(0xFF101010),
+    fillColor: oled ? const Color(0xFF080808) : const Color(0xFF101010),
     contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
     hintStyle: const TextStyle(color: TaqwaColors.muted, fontSize: 13),
     border: OutlineInputBorder(
@@ -57,29 +63,39 @@ class StarField extends StatelessWidget {
   final Widget child;
 
   @override
-  Widget build(BuildContext context) => Stack(
-    children: [
-      const Positioned.fill(
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: RadialGradient(
-              center: Alignment(0.75, -0.9),
-              radius: 1.1,
-              colors: [
-                Color(0xFF211708),
-                TaqwaColors.background,
-                TaqwaColors.background,
-              ],
+  Widget build(BuildContext context) {
+    final oled =
+        Theme.of(context).scaffoldBackgroundColor == TaqwaColors.oledBackground;
+    return Stack(
+      children: [
+        Positioned.fill(
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: RadialGradient(
+                center: const Alignment(0.75, -0.9),
+                radius: 1.1,
+                colors: oled
+                    ? const [
+                        Color(0xFF0C0803),
+                        TaqwaColors.oledBackground,
+                        TaqwaColors.oledBackground,
+                      ]
+                    : const [
+                        Color(0xFF211708),
+                        TaqwaColors.background,
+                        TaqwaColors.background,
+                      ],
+              ),
             ),
           ),
         ),
-      ),
-      Positioned.fill(
-        child: IgnorePointer(child: CustomPaint(painter: _StarsPainter())),
-      ),
-      child,
-    ],
-  );
+        Positioned.fill(
+          child: IgnorePointer(child: CustomPaint(painter: _StarsPainter())),
+        ),
+        child,
+      ],
+    );
+  }
 }
 
 class _StarsPainter extends CustomPainter {
@@ -120,7 +136,7 @@ class TaqwaCard extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: padding,
     decoration: BoxDecoration(
-      color: TaqwaColors.card,
+      color: Theme.of(context).colorScheme.surface,
       borderRadius: BorderRadius.circular(14),
       border: Border.all(
         color: goldBorder ? const Color(0xFF65491F) : TaqwaColors.border,

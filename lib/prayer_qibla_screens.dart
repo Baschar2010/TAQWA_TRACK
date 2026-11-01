@@ -8,6 +8,7 @@ import 'package:intl/intl.dart' show DateFormat;
 
 import 'app_controller.dart';
 import 'domain.dart';
+import 'hadith_screen.dart';
 import 'screens.dart';
 import 'theme.dart';
 
@@ -116,6 +117,8 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
           ),
         ),
         const SizedBox(height: 14),
+        const PrayerHadithCard(),
+        const SizedBox(height: 10),
         TaqwaCard(
           goldBorder: true,
           child: Column(

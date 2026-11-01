@@ -21,10 +21,37 @@ class FamilyMember {
 }
 
 class Partner {
-  const Partner({required this.id, required this.code, required this.name});
+  const Partner({
+    required this.id,
+    required this.code,
+    required this.name,
+    this.prayerMask = '00000',
+    this.habitsDone = 0,
+    this.habitsTotal = 0,
+    this.streak = 0,
+    this.snapshotDay = '',
+    this.snapshotAt,
+    this.reminderAt,
+    this.reminderText,
+  });
   final int id;
   final String code;
   final String name;
+  final String prayerMask;
+  final int habitsDone;
+  final int habitsTotal;
+  final int streak;
+  final String snapshotDay;
+  final String? snapshotAt;
+  final String? reminderAt;
+  final String? reminderText;
+
+  int get prayersDone => prayerMask.split('').where((c) => c == '1').length;
+
+  bool prayerDone(Prayer prayer) {
+    final index = Prayer.values.indexOf(prayer);
+    return index < prayerMask.length && prayerMask[index] == '1';
+  }
 }
 
 class TaqwaRepository {
@@ -43,7 +70,7 @@ class TaqwaRepository {
     _db = await _factory.openDatabase(
       path,
       options: OpenDatabaseOptions(
-        version: 2,
+        version: 4,
         onCreate: _createSchema,
         onUpgrade: _upgradeSchema,
       ),
@@ -64,11 +91,20 @@ class TaqwaRepository {
       calculation_method TEXT NOT NULL DEFAULT 'muslim_world_league',
       hanafi INTEGER NOT NULL DEFAULT 1,
       profile_id TEXT NOT NULL DEFAULT '',
-      onboarded INTEGER NOT NULL DEFAULT 0
+      onboarded INTEGER NOT NULL DEFAULT 0,
+      language TEXT NOT NULL DEFAULT 'de',
+      oled INTEGER NOT NULL DEFAULT 0,
+      adhan_enabled INTEGER NOT NULL DEFAULT 0,
+      adhan_minutes_before INTEGER NOT NULL DEFAULT 0,
+      tasbih_count INTEGER NOT NULL DEFAULT 0,
+      tasbih_target INTEGER NOT NULL DEFAULT 33,
+      outbox_reminder_at TEXT,
+      outbox_reminder_text TEXT,
+      gold_day TEXT
     )''');
     await db.insert('settings', {
       'id': 1,
-      'name': 'Hamza',
+      'name': 'Mein Profil',
       'xp': 0,
       'streak': 0,
       'location_name': 'Duisburg',
@@ -96,14 +132,19 @@ class TaqwaRepository {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL UNIQUE,
       sort_order INTEGER NOT NULL DEFAULT 0,
-      active INTEGER NOT NULL DEFAULT 1
+      active INTEGER NOT NULL DEFAULT 1,
+      built_in INTEGER NOT NULL DEFAULT 0
     )''');
     for (final (i, name) in [
       'Qur’an lesen',
       '100× Dhikr',
       'Dankbarkeit',
     ].indexed) {
-      await db.insert('habits', {'name': name, 'sort_order': i});
+      await db.insert('habits', {
+        'name': name,
+        'sort_order': i,
+        'built_in': 1,
+      });
     }
     await db.execute('''CREATE TABLE habit_logs (
       day TEXT NOT NULL,
@@ -129,8 +170,29 @@ class TaqwaRepository {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       code TEXT NOT NULL UNIQUE,
       name TEXT NOT NULL,
-      linked_at TEXT NOT NULL
+      linked_at TEXT NOT NULL,
+      prayer_mask TEXT NOT NULL DEFAULT '00000',
+      habits_done INTEGER NOT NULL DEFAULT 0,
+      habits_total INTEGER NOT NULL DEFAULT 0,
+      streak INTEGER NOT NULL DEFAULT 0,
+      snapshot_day TEXT NOT NULL DEFAULT '',
+      snapshot_at TEXT,
+      reminder_at TEXT,
+      reminder_text TEXT
     )''');
+    await db.execute('''CREATE TABLE quran_bookmarks (
+      surah INTEGER NOT NULL,
+      ayah INTEGER NOT NULL,
+      created_at TEXT NOT NULL,
+      PRIMARY KEY (surah, ayah)
+    )''');
+    await db.execute('''CREATE TABLE quran_progress (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      surah INTEGER NOT NULL DEFAULT 1,
+      ayah INTEGER NOT NULL DEFAULT 1,
+      updated_at TEXT
+    )''');
+    await db.insert('quran_progress', {'id': 1});
   }
 
   Future<void> _upgradeSchema(Database db, int oldVersion, int newVersion) async {
@@ -154,6 +216,55 @@ class TaqwaRepository {
         }, where: 'id = 1');
       }
     }
+    if (oldVersion < 3) {
+      for (final statement in [
+        'ALTER TABLE settings ADD COLUMN oled INTEGER NOT NULL DEFAULT 0',
+        'ALTER TABLE settings ADD COLUMN adhan_enabled INTEGER NOT NULL DEFAULT 0',
+        'ALTER TABLE settings ADD COLUMN adhan_minutes_before INTEGER NOT NULL DEFAULT 0',
+        'ALTER TABLE settings ADD COLUMN tasbih_count INTEGER NOT NULL DEFAULT 0',
+        'ALTER TABLE settings ADD COLUMN tasbih_target INTEGER NOT NULL DEFAULT 33',
+        'ALTER TABLE settings ADD COLUMN outbox_reminder_at TEXT',
+        'ALTER TABLE settings ADD COLUMN outbox_reminder_text TEXT',
+        'ALTER TABLE settings ADD COLUMN gold_day TEXT',
+        'ALTER TABLE habits ADD COLUMN built_in INTEGER NOT NULL DEFAULT 0',
+        "ALTER TABLE partners ADD COLUMN prayer_mask TEXT NOT NULL DEFAULT '00000'",
+        'ALTER TABLE partners ADD COLUMN habits_done INTEGER NOT NULL DEFAULT 0',
+        'ALTER TABLE partners ADD COLUMN habits_total INTEGER NOT NULL DEFAULT 0',
+        'ALTER TABLE partners ADD COLUMN streak INTEGER NOT NULL DEFAULT 0',
+        "ALTER TABLE partners ADD COLUMN snapshot_day TEXT NOT NULL DEFAULT ''",
+        'ALTER TABLE partners ADD COLUMN snapshot_at TEXT',
+        'ALTER TABLE partners ADD COLUMN reminder_at TEXT',
+        'ALTER TABLE partners ADD COLUMN reminder_text TEXT',
+        '''CREATE TABLE IF NOT EXISTS quran_bookmarks (
+          surah INTEGER NOT NULL,
+          ayah INTEGER NOT NULL,
+          created_at TEXT NOT NULL,
+          PRIMARY KEY (surah, ayah)
+        )''',
+        '''CREATE TABLE IF NOT EXISTS quran_progress (
+          id INTEGER PRIMARY KEY CHECK (id = 1),
+          surah INTEGER NOT NULL DEFAULT 1,
+          ayah INTEGER NOT NULL DEFAULT 1,
+          updated_at TEXT
+        )''',
+      ]) {
+        await db.execute(statement);
+      }
+      await db.rawUpdate(
+        'UPDATE habits SET built_in = 1 WHERE id IN '
+        '(SELECT id FROM habits ORDER BY sort_order, id LIMIT 3)',
+      );
+      await db.insert('quran_progress', {
+        'id': 1,
+      }, conflictAlgorithm: ConflictAlgorithm.ignore);
+      // Ohne Namenseingabe ist das Profil ab jetzt automatisch eingerichtet.
+      await db.update('settings', {'onboarded': 1}, where: 'id = 1');
+    }
+    if (oldVersion < 4) {
+      await db.execute(
+        "ALTER TABLE settings ADD COLUMN language TEXT NOT NULL DEFAULT 'de'",
+      );
+    }
   }
 
   Future<AppSettings> loadSettings() async {
@@ -171,6 +282,15 @@ class TaqwaRepository {
       hanafi: row['hanafi'] == 1,
       profileId: (row['profile_id'] as String?) ?? '',
       onboarded: row['onboarded'] == 1,
+      language: (row['language'] as String?) ?? 'de',
+      oled: row['oled'] == 1,
+      adhanEnabled: row['adhan_enabled'] == 1,
+      adhanMinutesBefore: (row['adhan_minutes_before'] as int?) ?? 0,
+      tasbihCount: (row['tasbih_count'] as int?) ?? 0,
+      tasbihTarget: (row['tasbih_target'] as int?) ?? 33,
+      outboxReminderAt: row['outbox_reminder_at'] as String?,
+      outboxReminderText: row['outbox_reminder_text'] as String?,
+      goldDay: row['gold_day'] as String?,
     );
   }
 
@@ -181,6 +301,16 @@ class TaqwaRepository {
     double? longitude,
     String? calculationMethod,
     bool? hanafi,
+    String? language,
+    bool? oled,
+    bool? adhanEnabled,
+    int? adhanMinutesBefore,
+    int? tasbihCount,
+    int? tasbihTarget,
+    String? outboxReminderAt,
+    String? outboxReminderText,
+    bool clearOutbox = false,
+    String? goldDay,
   }) async {
     final values = <String, Object?>{};
     if (name != null) values['name'] = name;
@@ -193,9 +323,45 @@ class TaqwaRepository {
     if (hanafi != null) {
       values['hanafi'] = hanafi ? 1 : 0;
     }
+    if (language != null) values['language'] = language;
+    if (oled != null) values['oled'] = oled ? 1 : 0;
+    if (adhanEnabled != null) {
+      values['adhan_enabled'] = adhanEnabled ? 1 : 0;
+    }
+    if (adhanMinutesBefore != null) {
+      values['adhan_minutes_before'] = adhanMinutesBefore;
+    }
+    if (tasbihCount != null) values['tasbih_count'] = tasbihCount;
+    if (tasbihTarget != null) values['tasbih_target'] = tasbihTarget;
+    if (clearOutbox) {
+      values['outbox_reminder_at'] = null;
+      values['outbox_reminder_text'] = null;
+    } else {
+      if (outboxReminderAt != null) {
+        values['outbox_reminder_at'] = outboxReminderAt;
+      }
+      if (outboxReminderText != null) {
+        values['outbox_reminder_text'] = outboxReminderText;
+      }
+    }
+    if (goldDay != null) values['gold_day'] = goldDay;
     if (values.isNotEmpty) {
       await (await database).update('settings', values, where: 'id = 1');
     }
+  }
+
+  /// Sorgt dafür, dass jede Installation automatisch ein eigenes Profil hat.
+  Future<AppSettings> ensureProfile() async {
+    final db = await database;
+    var settings = await loadSettings();
+    if (settings.profileId.isEmpty) {
+      final code = generateProfileCode();
+      await db.update('settings', {
+        'profile_id': code,
+      }, where: 'id = 1');
+      settings = await loadSettings();
+    }
+    return settings;
   }
 
   Future<Map<Prayer, bool>> prayerStatuses(DateTime date) async {
@@ -388,10 +554,15 @@ class TaqwaRepository {
     await db.delete('family_members', where: 'id = ?', whereArgs: [id]);
   }
 
-  Future<void> completeOnboarding(String name, String profileId) async {
+  Future<void> completeOnboarding(
+    String name,
+    String profileId, {
+    String language = 'de',
+  }) async {
     await (await database).update('settings', {
-      'name': name.trim(),
+      'name': name.trim().isEmpty ? 'Mein Profil' : name.trim(),
       'profile_id': profileId,
+      'language': language,
       'onboarded': 1,
     }, where: 'id = 1');
   }
@@ -405,30 +576,127 @@ class TaqwaRepository {
                 id: r['id']! as int,
                 code: r['code']! as String,
                 name: r['name']! as String,
+                prayerMask: (r['prayer_mask'] as String?) ?? '00000',
+                habitsDone: (r['habits_done'] as int?) ?? 0,
+                habitsTotal: (r['habits_total'] as int?) ?? 0,
+                streak: (r['streak'] as int?) ?? 0,
+                snapshotDay: (r['snapshot_day'] as String?) ?? '',
+                snapshotAt: r['snapshot_at'] as String?,
+                reminderAt: r['reminder_at'] as String?,
+                reminderText: r['reminder_text'] as String?,
               ),
             )
             .toList(),
       );
 
-  Future<bool> linkPartner(String code, String name) async {
-    final clean = code.trim().toUpperCase();
-    if (clean.isEmpty) return false;
-    final exists = await (await database).query(
+  /// Verknüpft bzw. aktualisiert einen Partner aus einem gescannten QR-Code.
+  Future<Partner> savePartnerSnapshot(ProfileSnapshot snapshot) async {
+    final db = await database;
+    final values = <String, Object?>{
+      'code': snapshot.code,
+      'name': snapshot.name.isEmpty ? 'Partner' : snapshot.name,
+      'prayer_mask': snapshot.prayerMask,
+      'habits_done': snapshot.habitsDone,
+      'habits_total': snapshot.habitsTotal,
+      'streak': snapshot.streak,
+      'snapshot_day': snapshot.day,
+      'snapshot_at': DateTime.now().toIso8601String(),
+      'reminder_at': snapshot.reminderAt,
+      'reminder_text': snapshot.reminderText,
+    };
+    final existing = await db.query(
       'partners',
       where: 'code = ?',
-      whereArgs: [clean],
+      whereArgs: [snapshot.code],
     );
-    if (exists.isNotEmpty) return false;
-    await (await database).insert('partners', {
-      'code': clean,
-      'name': name.trim().isEmpty ? 'Partner' : name.trim(),
-      'linked_at': DateTime.now().toIso8601String(),
-    });
-    return true;
+    if (existing.isEmpty) {
+      values['linked_at'] = DateTime.now().toIso8601String();
+      await db.insert('partners', values);
+    } else {
+      await db.update(
+        'partners',
+        values,
+        where: 'code = ?',
+        whereArgs: [snapshot.code],
+      );
+    }
+    return (await partners()).firstWhere((p) => p.code == snapshot.code);
   }
+
+  /// Fortschritt der Standard-Habits (ohne selbst angelegte Habits).
+  Future<(int done, int total)> builtInHabitProgress(DateTime date) async {
+    final db = await database;
+    final total =
+        Sqflite.firstIntValue(
+          await db.rawQuery(
+            'SELECT COUNT(*) FROM habits WHERE active = 1 AND built_in = 1',
+          ),
+        ) ??
+        0;
+    final done =
+        Sqflite.firstIntValue(
+          await db.rawQuery(
+            '''SELECT COUNT(*) FROM habit_logs l
+               JOIN habits h ON h.id = l.habit_id
+               WHERE l.day = ? AND l.status = ? AND h.built_in = 1''',
+            [dayKey(date), HabitStatus.done.index],
+          ),
+        ) ??
+        0;
+    return (done, total);
+  }
+
+  Future<void> markReminderDelivered(int id) async =>
+      (await database).update('partners', {
+        'reminder_at': null,
+        'reminder_text': null,
+      }, where: 'id = ?', whereArgs: [id]);
 
   Future<void> unlinkPartner(int id) async =>
       (await database).delete('partners', where: 'id = ?', whereArgs: [id]);
+
+  Future<List<(int, int)>> quranBookmarks() async =>
+      (await database).query('quran_bookmarks', orderBy: 'created_at DESC').then(
+        (rows) => rows
+            .map((r) => (r['surah']! as int, r['ayah']! as int))
+            .toList(),
+      );
+
+  Future<bool> toggleQuranBookmark(int surah, int ayah) async {
+    final db = await database;
+    final existing = await db.query(
+      'quran_bookmarks',
+      where: 'surah = ? AND ayah = ?',
+      whereArgs: [surah, ayah],
+    );
+    if (existing.isEmpty) {
+      await db.insert('quran_bookmarks', {
+        'surah': surah,
+        'ayah': ayah,
+        'created_at': DateTime.now().toIso8601String(),
+      });
+      return true;
+    }
+    await db.delete(
+      'quran_bookmarks',
+      where: 'surah = ? AND ayah = ?',
+      whereArgs: [surah, ayah],
+    );
+    return false;
+  }
+
+  Future<(int, int)?> quranProgress() async {
+    final rows = await (await database).query('quran_progress', where: 'id = 1');
+    if (rows.isEmpty) return null;
+    return (rows.single['surah']! as int, rows.single['ayah']! as int);
+  }
+
+  Future<void> saveQuranProgress(int surah, int ayah) async =>
+      (await database).update('quran_progress', {
+        'surah': surah,
+        'ayah': ayah,
+        'updated_at': DateTime.now().toIso8601String(),
+      }, where: 'id = 1');
 
   Future<Map<String, bool>> familyPrayerStatus(
     DateTime date,
