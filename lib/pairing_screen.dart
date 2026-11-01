@@ -365,7 +365,7 @@ class PartnerSection extends StatelessWidget {
               SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'Der Fortschritt reist im QR-Code – ohne Server und ohne Internet. Für einen frischen Stand scannt ihr euch erneut.',
+                  'Ein Scan verbindet beide Seiten direkt über euer WLAN – ohne Server und ohne Internet. Klappt es nicht, zeigt die App deinen Code zum Nachscannen.',
                   style: TextStyle(
                     fontSize: 9,
                     color: TaqwaColors.muted,
@@ -388,16 +388,57 @@ class PartnerSection extends StatelessWidget {
 
   Future<void> _handlePayload(BuildContext context, String raw) async {
     try {
-      final snapshot = await controller.linkFromScan(raw);
+      final result = await controller.linkFromScan(raw);
       if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            snapshot == null
-                ? 'Kein TAQWA-TRACK-QR-Code erkannt.'
-                : 'Verbunden mit ${snapshot.name.isEmpty ? 'deinem Partner' : snapshot.name}.',
+      final snapshot = result.snapshot;
+      if (snapshot == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              result.reason ?? 'Kein TAQWA-TRACK-QR-Code erkannt.',
+            ),
+            duration: const Duration(seconds: 3),
           ),
-          duration: const Duration(seconds: 2),
+        );
+        return;
+      }
+      final name = snapshot.name.trim().isEmpty
+          ? 'dein Familienmitglied'
+          : snapshot.name.trim();
+      if (result.mutual) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Gegenseitig verknüpft: Du siehst $name und $name sieht dich.',
+            ),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+        return;
+      }
+      if (snapshot.syncHost == null) {
+        // Manuell eingegebener Code: die Gegenseite muss den eigenen Code
+        // scannen, damit auch sie die Kopplung erhält.
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Mit $name verknüpft. Damit $name dich auch sieht, scannt '
+              '$name einmal deinen QR-Code.',
+            ),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+        return;
+      }
+      // Die Gegenseite war im WLAN nicht erreichbar: eigenen Code anbieten,
+      // damit der zweite Scan die Verbindung auf beiden Geräten herstellt.
+      await showModalBottomSheet<void>(
+        context: context,
+        backgroundColor: TaqwaColors.card,
+        isScrollControlled: true,
+        builder: (_) => _FallbackLinkSheet(
+          snapshot: controller.profileSnapshot,
+          partnerName: name,
         ),
       );
     } on StateError catch (error) {
@@ -493,7 +534,7 @@ class _PartnerCard extends StatelessWidget {
                   backgroundColor: const Color(0xFF251C0E),
                   foregroundColor: TaqwaColors.goldLight,
                   child: Text(
-                    initials(partner.name),
+                    initials(partner.displayName),
                     style: const TextStyle(fontSize: 11),
                   ),
                 ),
@@ -503,15 +544,17 @@ class _PartnerCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        partner.name,
+                        partner.displayName,
                         style: const TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
                       Text(
-                        'Stand: ${_relative(partner.snapshotAt)}'
-                        '${stale ? ' · gestern oder älter' : ''}',
+                        partner.alias != null
+                            ? 'Stand: ${_relative(partner.snapshotAt)} · eigener Name, nur hier'
+                            : 'Stand: ${_relative(partner.snapshotAt)}'
+                                  '${stale ? ' · gestern oder älter' : ''}',
                         style: const TextStyle(
                           color: TaqwaColors.muted,
                           fontSize: 8,
@@ -532,6 +575,8 @@ class _PartnerCard extends StatelessWidget {
                     switch (value) {
                       case 'scan':
                         await scanPartnerAgain(context);
+                      case 'rename':
+                        await _renamePartner(context);
                       case 'remind':
                         await controller.sendReminder(partner);
                         if (context.mounted) {
@@ -560,6 +605,13 @@ class _PartnerCard extends StatelessWidget {
                       value: 'scan',
                       child: Text(
                         'Status aktualisieren (QR)',
+                        style: TextStyle(fontSize: 11),
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: 'rename',
+                      child: Text(
+                        'Umbenennen (nur hier)',
                         style: TextStyle(fontSize: 11),
                       ),
                     ),
@@ -709,11 +761,19 @@ class _PartnerCard extends StatelessWidget {
     final raw = await openQrScanner(context);
     if (raw == null || !context.mounted) return;
     try {
-      final snapshot = await controller.linkFromScan(raw);
+      final result = await controller.linkFromScan(raw);
+      final snapshot = result.snapshot;
       if (snapshot != null && context.mounted) {
+        final name = snapshot.name.trim().isEmpty
+            ? 'deinem Familienmitglied'
+            : snapshot.name.trim();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Status von ${snapshot.name} aktualisiert.'),
+            content: Text(
+              result.mutual
+                  ? 'Status gegenseitig mit $name aktualisiert.'
+                  : 'Status von $name aktualisiert.',
+            ),
             duration: const Duration(seconds: 2),
           ),
         );
@@ -727,13 +787,38 @@ class _PartnerCard extends StatelessWidget {
     }
   }
 
+  Future<void> _renamePartner(BuildContext context) async {
+    final result = await showDialog<String>(
+      context: context,
+      builder: (_) => _RenameDialog(
+        initial: partner.displayName,
+        remoteName: partner.name,
+      ),
+    );
+    if (result == null) return;
+    await controller.renamePartner(partner.id, result);
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          result.trim().isEmpty
+              ? 'Spitzname entfernt. Es gilt wieder der Name deines Familienmitglieds.'
+              : 'Name nur auf diesem Gerät geändert. ${partner.name} sieht weiterhin den eigenen Namen.',
+        ),
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
   Future<void> _confirmUnlink(BuildContext context) async {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         backgroundColor: TaqwaColors.card,
         title: const Text('Kopplung lösen?', style: TextStyle(fontSize: 15)),
-        content: Text('Die Verbindung zu ${partner.name} wird entfernt.'),
+        content: Text(
+          'Die Verbindung zu ${partner.displayName} wird entfernt.',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
@@ -748,6 +833,128 @@ class _PartnerCard extends StatelessWidget {
     );
     if (confirmed == true) await controller.unlinkPartner(partner.id);
   }
+}
+
+class _FallbackLinkSheet extends StatelessWidget {
+  const _FallbackLinkSheet({required this.snapshot, required this.partnerName});
+
+  final ProfileSnapshot snapshot;
+  final String partnerName;
+
+  @override
+  Widget build(BuildContext context) => SafeArea(
+    child: SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(
+            Icons.wifi_tethering,
+            color: TaqwaColors.gold,
+            size: 26,
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Noch nicht gegenseitig verknüpft',
+            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            '$partnerName war gerade nicht im selben WLAN erreichbar. '
+            'Zeige $partnerName jetzt deinen QR-Code und lasse ihn einmal '
+            'scannen – danach sehen euch beide Seiten.',
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: TaqwaColors.muted,
+              fontSize: 10,
+              height: 1.5,
+            ),
+          ),
+          const SizedBox(height: 14),
+          if (snapshot.code.isNotEmpty)
+            ProfileQrCard(snapshot: snapshot, size: 170),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              onPressed: () => Navigator.of(context).pop(),
+              style: FilledButton.styleFrom(
+                backgroundColor: TaqwaColors.gold,
+                foregroundColor: const Color(0xFF17120A),
+              ),
+              child: const Text('Fertig'),
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+class _RenameDialog extends StatefulWidget {
+  const _RenameDialog({required this.initial, required this.remoteName});
+
+  final String initial;
+  final String remoteName;
+
+  @override
+  State<_RenameDialog> createState() => _RenameDialogState();
+}
+
+class _RenameDialogState extends State<_RenameDialog> {
+  late final TextEditingController _input = TextEditingController(
+    text: widget.initial,
+  );
+
+  @override
+  void dispose() {
+    _input.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    backgroundColor: TaqwaColors.card,
+    title: const Text('Umbenennen', style: TextStyle(fontSize: 15)),
+    content: Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextField(
+          controller: _input,
+          autofocus: true,
+          maxLength: 24,
+          decoration: const InputDecoration(
+            labelText: 'Dein Name für diese Person',
+            hintText: 'z. B. Papa',
+          ),
+        ),
+        const Text(
+          'Der Name gilt nur auf diesem Gerät. Der eigene Name der anderen '
+          'Person bleibt unverändert.',
+          style: TextStyle(
+            color: TaqwaColors.muted,
+            fontSize: 9,
+            height: 1.45,
+          ),
+        ),
+      ],
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text('Abbrechen'),
+      ),
+      TextButton(
+        onPressed: () => Navigator.pop(context, ''),
+        child: const Text('Zurücksetzen'),
+      ),
+      FilledButton(
+        onPressed: () => Navigator.pop(context, _input.text.trim()),
+        child: const Text('Speichern'),
+      ),
+    ],
+  );
 }
 
 String _relative(String? iso) {

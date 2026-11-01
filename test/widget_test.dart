@@ -8,6 +8,7 @@ import 'package:taqwa_track/data/taqwa_repository.dart';
 import 'package:taqwa_track/domain.dart';
 import 'package:taqwa_track/hadith_screen.dart';
 import 'package:taqwa_track/info_screens.dart';
+import 'package:taqwa_track/link_sync.dart';
 import 'package:taqwa_track/main.dart';
 import 'package:taqwa_track/onboarding_screen.dart';
 import 'package:taqwa_track/quran_screen.dart';
@@ -109,11 +110,16 @@ class _FakeRepository extends TaqwaRepository {
 
   @override
   Future<Partner> savePartnerSnapshot(ProfileSnapshot snapshot) async {
+    Partner? previous;
+    for (final p in linkedPartners) {
+      if (p.code == snapshot.code) previous = p;
+    }
     linkedPartners.removeWhere((p) => p.code == snapshot.code);
     final partner = Partner(
-      id: linkedPartners.length + 1,
+      id: previous?.id ?? linkedPartners.length + 1,
       code: snapshot.code,
       name: snapshot.name.isEmpty ? 'Partner' : snapshot.name,
+      alias: previous?.alias,
       prayerMask: snapshot.prayerMask,
       habitsDone: snapshot.habitsDone,
       habitsTotal: snapshot.habitsTotal,
@@ -125,6 +131,28 @@ class _FakeRepository extends TaqwaRepository {
     );
     linkedPartners.add(partner);
     return partner;
+  }
+
+  @override
+  Future<void> setPartnerAlias(int id, String? alias) async {
+    final index = linkedPartners.indexWhere((p) => p.id == id);
+    if (index == -1) return;
+    final old = linkedPartners[index];
+    final clean = alias?.trim() ?? '';
+    linkedPartners[index] = Partner(
+      id: old.id,
+      code: old.code,
+      name: old.name,
+      alias: clean.isEmpty ? null : clean,
+      prayerMask: old.prayerMask,
+      habitsDone: old.habitsDone,
+      habitsTotal: old.habitsTotal,
+      streak: old.streak,
+      snapshotDay: old.snapshotDay,
+      snapshotAt: old.snapshotAt,
+      reminderAt: old.reminderAt,
+      reminderText: old.reminderText,
+    );
   }
 
   @override
@@ -361,6 +389,64 @@ void main() {
     expect(find.text('Noch keine Kopplung'), findsOneWidget);
   });
 
+  testWidgets('Spitzname bleibt lokal und überlebt neue Partnerdaten', (
+    tester,
+  ) async {
+    await tester.pumpWidget(TaqwaTrackApp(controller: controller));
+    await settleApp(tester);
+
+    await tapNav(tester, 'Family');
+    await tester.tap(find.text('Code manuell eingeben'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.enterText(find.byType(TextField).last, 'FRIEND9');
+    await tester.tap(find.text('Verbinden'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(controller.partners, hasLength(1));
+    expect(controller.partners.single.name, 'Partner');
+
+    // SnackBar ausblenden, damit sie das Drei-Punkte-Menü nicht überdeckt.
+    await tester.pump(const Duration(seconds: 4));
+    await tester.pump(const Duration(milliseconds: 500));
+
+    final menu = find.byIcon(Icons.more_vert);
+    await tester.ensureVisible(menu);
+    await tester.pump();
+    await tester.tap(menu);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.tap(find.text('Umbenennen (nur hier)'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.enterText(find.byType(TextField).last, 'Papa');
+    await tester.tap(find.text('Speichern'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(controller.partners.single.alias, 'Papa');
+    expect(controller.partners.single.displayName, 'Papa');
+    // Der echte Name der anderen Person bleibt unangetastet.
+    expect(controller.partners.single.name, 'Partner');
+
+    // Ein neuer Stand vom anderen Gerät darf den Spitznamen nicht ersetzen.
+    await repository.savePartnerSnapshot(
+      const ProfileSnapshot(
+        code: 'FRIEND9',
+        name: 'Partner',
+        prayerMask: '11111',
+        habitsDone: 1,
+        habitsTotal: 3,
+        streak: 2,
+        day: '2026-10-30',
+      ),
+    );
+    await controller.refresh();
+    expect(controller.partners.single.alias, 'Papa');
+    expect(controller.partners.single.displayName, 'Papa');
+  });
+
   testWidgets('Gebete-Tab zeigt Tages-Habits, Hadith und 1/5', (tester) async {
     await tester.pumpWidget(TaqwaTrackApp(controller: controller));
     await settleApp(tester);
@@ -521,6 +607,99 @@ void main() {
     expect(nextRamadanStart(during).isAfter(during), isTrue);
   });
 
+  test('Ein Scan verknüpft beide Geräte über das lokale WLAN', () async {
+    const mineA = ProfileSnapshot(
+      code: 'AAAAAA',
+      name: 'Aisha',
+      prayerMask: '10100',
+      habitsDone: 2,
+      habitsTotal: 3,
+      streak: 4,
+      day: '2026-10-30',
+      syncHost: '127.0.0.1',
+      syncPort: 49001,
+    );
+    const mineB = ProfileSnapshot(
+      code: 'BBBBBB',
+      name: 'Bilal',
+      prayerMask: '11111',
+      habitsDone: 3,
+      habitsTotal: 3,
+      streak: 9,
+      day: '2026-10-30',
+      syncHost: '127.0.0.1',
+      syncPort: 49002,
+    );
+    final peersA = <ProfileSnapshot>[];
+    final peersB = <ProfileSnapshot>[];
+    final a = LinkSyncService(allowDesktop: true, port: 49001);
+    final b = LinkSyncService(allowDesktop: true, port: 49002);
+    addTearDown(a.stop);
+    addTearDown(b.stop);
+    await a.start(
+      mySnapshot: () async => mineA,
+      onPeerLinked: (peer) async => peersA.add(peer),
+    );
+    await b.start(
+      mySnapshot: () async => mineB,
+      onPeerLinked: (peer) async => peersB.add(peer),
+    );
+
+    final mutual = await a.handshake(peer: mineB, mine: mineA);
+
+    expect(mutual, isTrue);
+    // Das gescannte Gerät kennt den Scanner …
+    expect(peersB.map((p) => p.code), contains('AAAAAA'));
+    // … und der Scanner kennt das gescannte Gerät.
+    expect(peersA.map((p) => p.code), contains('BBBBBB'));
+  });
+
+  test('Spitzname bleibt in der Datenbank erhalten', () async {
+    final repository = TaqwaRepository(
+      factory: databaseFactoryFfi,
+      path: inMemoryDatabasePath,
+    );
+    addTearDown(repository.close);
+    const snapshot = ProfileSnapshot(
+      code: 'K7QF2M',
+      name: 'Aisha Müller',
+      prayerMask: '10101',
+      habitsDone: 3,
+      habitsTotal: 5,
+      streak: 12,
+      day: '2026-10-30',
+    );
+    final partner = await repository.savePartnerSnapshot(snapshot);
+    await repository.setPartnerAlias(partner.id, 'Mama');
+
+    var loaded = (await repository.partners()).single;
+    expect(loaded.alias, 'Mama');
+    expect(loaded.displayName, 'Mama');
+    expect(loaded.name, 'Aisha Müller');
+
+    // Neuer Status vom anderen Gerät: Name und Alias bleiben getrennt.
+    await repository.savePartnerSnapshot(
+      const ProfileSnapshot(
+        code: 'K7QF2M',
+        name: 'Aisha Müller',
+        prayerMask: '11111',
+        habitsDone: 5,
+        habitsTotal: 5,
+        streak: 13,
+        day: '2026-10-31',
+      ),
+    );
+    loaded = (await repository.partners()).single;
+    expect(loaded.alias, 'Mama');
+    expect(loaded.displayName, 'Mama');
+    expect(loaded.prayersDone, 5);
+
+    await repository.setPartnerAlias(loaded.id, '   ');
+    loaded = (await repository.partners()).single;
+    expect(loaded.alias, isNull);
+    expect(loaded.displayName, 'Aisha Müller');
+  });
+
   test('QR-Snapshot überträgt den Fortschritt verlustfrei', () {
     const snapshot = ProfileSnapshot(
       code: 'K7QF2M',
@@ -532,6 +711,8 @@ void main() {
       day: '2026-10-30',
       reminderAt: '2026-10-30T18:00:00.000',
       reminderText: 'Bitte bete Maghrib – ich denke an dich.',
+      syncHost: '192.168.1.42',
+      syncPort: 48765,
     );
     final parsed = ProfileSnapshot.tryParse(snapshot.encode());
     expect(parsed, isNotNull);
@@ -542,6 +723,14 @@ void main() {
     expect(parsed.habitsDone, 3);
     expect(parsed.streak, 12);
     expect(parsed.reminderText, snapshot.reminderText);
+    expect(parsed.syncHost, '192.168.1.42');
+    expect(parsed.syncPort, 48765);
+    // Alte Codes ohne WLAN-Felder bleiben lesbar.
+    final old = ProfileSnapshot.tryParse(
+      'TT2|ALT001|Alt|10101|1|5|3|2026-10-30||',
+    );
+    expect(old, isNotNull);
+    expect(old!.syncHost, isNull);
     expect(ProfileSnapshot.tryParse('https://example.com'), isNull);
   });
 }

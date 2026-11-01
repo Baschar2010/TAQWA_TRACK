@@ -25,6 +25,7 @@ class Partner {
     required this.id,
     required this.code,
     required this.name,
+    this.alias,
     this.prayerMask = '00000',
     this.habitsDone = 0,
     this.habitsTotal = 0,
@@ -37,6 +38,10 @@ class Partner {
   final int id;
   final String code;
   final String name;
+
+  /// Nur auf diesem Gerät gesetzter Spitzname. Er wird nie per QR-Code
+  /// übertragen und überschreibt deshalb nie den Namen des anderen Geräts.
+  final String? alias;
   final String prayerMask;
   final int habitsDone;
   final int habitsTotal;
@@ -45,6 +50,11 @@ class Partner {
   final String? snapshotAt;
   final String? reminderAt;
   final String? reminderText;
+
+  String get displayName {
+    final local = alias?.trim() ?? '';
+    return local.isEmpty ? name : local;
+  }
 
   int get prayersDone => prayerMask.split('').where((c) => c == '1').length;
 
@@ -70,7 +80,7 @@ class TaqwaRepository {
     _db = await _factory.openDatabase(
       path,
       options: OpenDatabaseOptions(
-        version: 4,
+        version: 5,
         onCreate: _createSchema,
         onUpgrade: _upgradeSchema,
       ),
@@ -170,6 +180,7 @@ class TaqwaRepository {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       code TEXT NOT NULL UNIQUE,
       name TEXT NOT NULL,
+      alias TEXT,
       linked_at TEXT NOT NULL,
       prayer_mask TEXT NOT NULL DEFAULT '00000',
       habits_done INTEGER NOT NULL DEFAULT 0,
@@ -264,6 +275,9 @@ class TaqwaRepository {
       await db.execute(
         "ALTER TABLE settings ADD COLUMN language TEXT NOT NULL DEFAULT 'de'",
       );
+    }
+    if (oldVersion < 5) {
+      await db.execute('ALTER TABLE partners ADD COLUMN alias TEXT');
     }
   }
 
@@ -576,6 +590,7 @@ class TaqwaRepository {
                 id: r['id']! as int,
                 code: r['code']! as String,
                 name: r['name']! as String,
+                alias: r['alias'] as String?,
                 prayerMask: (r['prayer_mask'] as String?) ?? '00000',
                 habitsDone: (r['habits_done'] as int?) ?? 0,
                 habitsTotal: (r['habits_total'] as int?) ?? 0,
@@ -654,6 +669,16 @@ class TaqwaRepository {
 
   Future<void> unlinkPartner(int id) async =>
       (await database).delete('partners', where: 'id = ?', whereArgs: [id]);
+
+  /// Setzt einen rein lokalen Spitznamen. Er bleibt auf diesem Gerät und
+  /// wird nicht über den QR-Code an das andere Gerät übertragen.
+  /// `null` oder ein leerer Text entfernt den Spitznamen wieder.
+  Future<void> setPartnerAlias(int id, String? alias) async {
+    final clean = alias?.trim() ?? '';
+    await (await database).update('partners', {
+      'alias': clean.isEmpty ? null : clean,
+    }, where: 'id = ?', whereArgs: [id]);
+  }
 
   Future<List<(int, int)>> quranBookmarks() async =>
       (await database).query('quran_bookmarks', orderBy: 'created_at DESC').then(

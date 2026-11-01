@@ -278,6 +278,8 @@ class ProfileSnapshot {
     required this.day,
     this.reminderAt,
     this.reminderText,
+    this.syncHost,
+    this.syncPort,
   });
 
   static const prefix = 'TT2';
@@ -295,12 +297,30 @@ class ProfileSnapshot {
   final String? reminderAt;
   final String? reminderText;
 
+  /// Lokale IP-Adresse für die direkte Geräte-zu-Geräte-Kopplung im WLAN.
+  final String? syncHost;
+  final int? syncPort;
+
   List<Prayer> get prayers => [
     for (var i = 0; i < Prayer.values.length; i++)
       if (i < prayerMask.length && prayerMask[i] == '1') Prayer.values[i],
   ];
 
   int get prayersDone => prayerMask.split('').where((c) => c == '1').length;
+
+  ProfileSnapshot withSync({String? host, int? port}) => ProfileSnapshot(
+    code: code,
+    name: name,
+    prayerMask: prayerMask,
+    habitsDone: habitsDone,
+    habitsTotal: habitsTotal,
+    streak: streak,
+    day: day,
+    reminderAt: reminderAt,
+    reminderText: reminderText,
+    syncHost: host ?? syncHost,
+    syncPort: port ?? syncPort,
+  );
 
   String encode() => [
     prefix,
@@ -313,6 +333,8 @@ class ProfileSnapshot {
     day,
     reminderAt == null ? '' : Uri.encodeComponent(reminderAt!),
     reminderText == null ? '' : Uri.encodeComponent(reminderText!),
+    syncHost ?? '',
+    syncPort == null ? '' : '$syncPort',
   ].join('|');
 
   /// Liest einen gescannten QR-Inhalt. Gibt null zurück, wenn der Inhalt
@@ -344,6 +366,10 @@ class ProfileSnapshot {
       reminderText: parts.length > 9 && parts[9].isNotEmpty
           ? Uri.decodeComponent(parts[9])
           : null,
+      syncHost: parts.length > 10 && parts[10].isNotEmpty
+          ? parts[10].trim()
+          : null,
+      syncPort: parts.length > 11 ? int.tryParse(parts[11]) : null,
     );
   }
 }

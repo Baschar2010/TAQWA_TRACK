@@ -20,14 +20,42 @@ Future<void> main() async {
   runApp(TaqwaTrackApp(controller: controller));
 }
 
-class TaqwaTrackApp extends StatelessWidget {
+class TaqwaTrackApp extends StatefulWidget {
   const TaqwaTrackApp({super.key, required this.controller});
   final TaqwaController controller;
 
   @override
+  State<TaqwaTrackApp> createState() => _TaqwaTrackAppState();
+}
+
+class _TaqwaTrackAppState extends State<TaqwaTrackApp>
+    with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Nach einem WLAN-Wechsel ändert sich die lokale IP. Der QR-Code muss
+    // dann mit der neuen Adresse erzeugt werden.
+    if (state == AppLifecycleState.resumed) {
+      widget.controller.refreshLinkSync();
+    }
+  }
+
+  @override
   Widget build(BuildContext context) => AnimatedBuilder(
-    animation: controller,
+    animation: widget.controller,
     builder: (context, _) {
+      final controller = widget.controller;
       final language = languageFor(controller.settings?.language);
       return MaterialApp(
         title: 'TAQWA TRACK',

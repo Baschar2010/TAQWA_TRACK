@@ -3,6 +3,7 @@ import 'package:geolocator/geolocator.dart';
 
 import 'data/taqwa_repository.dart';
 import 'domain.dart';
+import 'link_sync.dart';
 import 'notifications.dart';
 
 class Habit {
@@ -13,11 +14,18 @@ class Habit {
 }
 
 class TaqwaController extends ChangeNotifier {
-  TaqwaController(this.repository, {DateTime Function()? clock})
-    : _clock = clock ?? DateTime.now;
+  TaqwaController(
+    this.repository, {
+    DateTime Function()? clock,
+    LinkSyncService? linkSync,
+  }) : _clock = clock ?? DateTime.now,
+       linkSync = linkSync ?? LinkSyncService();
 
   final TaqwaRepository repository;
   final DateTime Function() _clock;
+
+  /// Sorgt dafür, dass ein einziger Scan beide Geräte verknüpft.
+  final LinkSyncService linkSync;
 
   AppSettings? settings;
   PrayerSchedule? schedule;
@@ -84,6 +92,8 @@ class TaqwaController extends ChangeNotifier {
     day: dayKey(today),
     reminderAt: settings?.outboxReminderAt,
     reminderText: settings?.outboxReminderText,
+    syncHost: linkSync.host,
+    syncPort: linkSync.port,
   );
 
   Future<void> initialize() async {
@@ -94,12 +104,34 @@ class TaqwaController extends ChangeNotifier {
       _wasComplete = allPrayersTodayDone;
       ready = true;
       notifyListeners();
+      await _startLinkSync();
       await applyNotificationSchedule();
     } catch (e) {
       error = 'Die lokalen App-Daten konnten nicht geladen werden: $e';
       ready = true;
       notifyListeners();
     }
+  }
+
+  Future<void> _startLinkSync() async {
+    await linkSync.start(
+      mySnapshot: () async => profileSnapshot,
+      onPeerLinked: _handlePeerLinked,
+    );
+  }
+
+  /// Speichert einen Partner, der über das lokale WLAN dazugekommen ist.
+  Future<void> _handlePeerLinked(ProfileSnapshot snapshot) async {
+    if (snapshot.code.isEmpty || snapshot.code == settings?.profileId) return;
+    await repository.savePartnerSnapshot(snapshot);
+    partners = await repository.partners();
+    notifyListeners();
+  }
+
+  /// Liest die eigene IP neu ein, z. B. nach einem WLAN-Wechsel.
+  Future<void> refreshLinkSync() async {
+    final changed = await linkSync.refreshHost();
+    if (changed) notifyListeners();
   }
 
   Future<void> refresh() async {
@@ -282,9 +314,16 @@ class TaqwaController extends ChangeNotifier {
 
   /// Verarbeitet einen gescannten QR-Code: linkt den Partner, übernimmt
   /// dessen Fortschritt und zeigt ggf. seine Erinnerung an.
-  Future<ProfileSnapshot?> linkFromScan(String raw) async {
+  ///
+  /// Danach wird der eigene Stand direkt an das gescannte Gerät geschickt.
+  /// Antwortet es, ist die Kopplung sofort auf beiden Seiten aktiv.
+  Future<LinkResult> linkFromScan(String raw) async {
     final snapshot = ProfileSnapshot.tryParse(raw);
-    if (snapshot == null) return null;
+    if (snapshot == null) {
+      return const LinkResult(
+        reason: 'Dieser QR-Code gehört nicht zu TAQWA TRACK.',
+      );
+    }
     if (snapshot.code == settings?.profileId) {
       throw StateError('Das ist dein eigener QR-Code.');
     }
@@ -297,7 +336,30 @@ class TaqwaController extends ChangeNotifier {
         body: snapshot.reminderText ?? ProfileSnapshot.defaultReminder,
       );
     }
-    return snapshot;
+    final mutual = await linkSync.handshake(
+      peer: snapshot,
+      mine: profileSnapshot,
+    );
+    if (mutual) {
+      partners = await repository.partners();
+      notifyListeners();
+    }
+    return LinkResult(
+      snapshot: snapshot,
+      mutual: mutual,
+      reason: mutual
+          ? null
+          : 'Die Gegenseite war nicht im selben WLAN erreichbar. '
+                'Zeige ihr jetzt deinen QR-Code, damit die Kopplung auch dort ankommt.',
+    );
+  }
+
+  /// Setzt einen rein lokalen Spitznamen. Der eigene Name auf dem anderen
+  /// Gerät bleibt davon unberührt.
+  Future<void> renamePartner(int id, String? alias) async {
+    await repository.setPartnerAlias(id, alias);
+    partners = await repository.partners();
+    notifyListeners();
   }
 
   Future<void> unlinkPartner(int id) async {
@@ -318,7 +380,7 @@ class TaqwaController extends ChangeNotifier {
     await NotificationService.showNow(
       title: 'Erinnerung bereit',
       body:
-          'Zeige ${partner.name} deinen QR-Code – die Erinnerung wird beim Scannen übertragen.',
+          'Zeige ${partner.displayName} deinen QR-Code – die Erinnerung wird beim Scannen übertragen.',
     );
     notifyListeners();
   }
@@ -421,4 +483,10 @@ class TaqwaController extends ChangeNotifier {
   }
 
   Future<void> close() => repository.close();
+
+  @override
+  void dispose() {
+    linkSync.stop();
+    super.dispose();
+  }
 }
