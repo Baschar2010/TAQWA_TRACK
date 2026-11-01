@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'app_controller.dart';
+import 'app_shortcuts.dart';
 import 'data/taqwa_repository.dart';
 import 'language.dart';
 import 'notifications.dart';
@@ -18,20 +19,37 @@ Future<void> main() async {
   final controller = TaqwaController(TaqwaRepository());
   await controller.initialize();
   await NotificationService.initialize();
-  runApp(TaqwaTrackApp(controller: controller, updateService: UpdateService()));
+  runApp(
+    TaqwaTrackApp(
+      controller: controller,
+      updateService: UpdateService(),
+      shortcuts: AppShortcutService(),
+    ),
+  );
 }
+
+/// Wandelt den gespeicherten Wert in einen [ThemeMode] um.
+ThemeMode themeModeFrom(String? value) => switch (value) {
+  'light' => ThemeMode.light,
+  'dark' => ThemeMode.dark,
+  _ => ThemeMode.system,
+};
 
 class TaqwaTrackApp extends StatefulWidget {
   const TaqwaTrackApp({
     super.key,
     required this.controller,
     this.updateService,
+    this.shortcuts,
   });
   final TaqwaController controller;
 
   /// Wird von [main] gesetzt. In Tests bleibt der Wert `null`, damit keine
   /// echten Netzwerkaufrufe und Timer entstehen.
   final UpdateService? updateService;
+
+  /// Verbindung zu den Android-Schnellstartaktionen. In Tests `null`.
+  final AppShortcutService? shortcuts;
 
   @override
   State<TaqwaTrackApp> createState() => _TaqwaTrackAppState();
@@ -86,16 +104,37 @@ class _TaqwaTrackAppState extends State<TaqwaTrackApp>
   }
 
   @override
+  void didChangePlatformBrightness() {
+    // Im Modus "System" muss die Palette neu gewählt werden.
+    if (mounted) setState(() {});
+  }
+
+  @override
   Widget build(BuildContext context) => AnimatedBuilder(
     animation: widget.controller,
     builder: (context, _) {
       final controller = widget.controller;
       final language = languageFor(controller.settings?.language);
+      final mode = themeModeFrom(controller.settings?.themeMode);
+      final brightness = switch (mode) {
+        ThemeMode.light => Brightness.light,
+        ThemeMode.dark => Brightness.dark,
+        ThemeMode.system =>
+          WidgetsBinding.instance.platformDispatcher.platformBrightness,
+      };
+      final theme = taqwaTheme(
+        oled: controller.settings?.oled ?? false,
+        brightness: brightness,
+      );
       return MaterialApp(
         title: 'TAQWA TRACK',
         navigatorKey: _navigatorKey,
         debugShowCheckedModeBanner: false,
-        theme: taqwaTheme(oled: controller.settings?.oled ?? false),
+        theme: theme,
+        darkTheme: theme,
+        themeMode: brightness == Brightness.light
+            ? ThemeMode.light
+            : ThemeMode.dark,
         locale: language.locale,
         supportedLocales: [for (final item in appLanguages) item.locale],
         localizationsDelegates: const [
@@ -103,7 +142,7 @@ class _TaqwaTrackAppState extends State<TaqwaTrackApp>
           GlobalWidgetsLocalizations.delegate,
           GlobalCupertinoLocalizations.delegate,
         ],
-        home: MainShell(controller: controller),
+        home: MainShell(controller: controller, shortcuts: widget.shortcuts),
       );
     },
   );

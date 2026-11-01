@@ -35,26 +35,26 @@ class ProfileQrCard extends StatelessWidget {
           size: size,
           backgroundColor: Colors.white,
           errorCorrectionLevel: QrErrorCorrectLevel.M,
-          eyeStyle: const QrEyeStyle(
+          eyeStyle: QrEyeStyle(
             eyeShape: QrEyeShape.square,
-            color: Color(0xFF151515),
+            color: TaqwaColors.onGold,
           ),
-          dataModuleStyle: const QrDataModuleStyle(
+          dataModuleStyle: QrDataModuleStyle(
             dataModuleShape: QrDataModuleShape.square,
-            color: Color(0xFF151515),
+            color: TaqwaColors.onGold,
           ),
         ),
       ),
       if (showCode) ...[
         const SizedBox(height: 8),
-        const Text(
+        Text(
           'Kopplungscode',
           style: TextStyle(color: TaqwaColors.muted, fontSize: 8),
         ),
         const SizedBox(height: 2),
         Text(
           snapshot.code,
-          style: const TextStyle(
+          style: TextStyle(
             color: TaqwaColors.goldLight,
             fontSize: 18,
             fontWeight: FontWeight.w800,
@@ -175,7 +175,7 @@ class _ScannerError extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(
+            Icon(
               Icons.no_photography_outlined,
               color: TaqwaColors.gold,
               size: 32,
@@ -234,7 +234,7 @@ class PartnerSection extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Eyebrow('DEIN QR-CODE', color: TaqwaColors.gold),
+                        Eyebrow('DEIN QR-CODE', color: TaqwaColors.gold),
                         const SizedBox(height: 4),
                         Text(
                           snapshot.name,
@@ -246,7 +246,7 @@ class PartnerSection extends StatelessWidget {
                         const SizedBox(height: 2),
                         Text(
                           snapshot.code,
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: TaqwaColors.goldLight,
                             fontSize: 15,
                             fontWeight: FontWeight.w800,
@@ -254,7 +254,7 @@ class PartnerSection extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: 6),
-                        const Text(
+                        Text(
                           'Scanne den Code deines Familienmitglieds – danach seid ihr verknüpft und seht euren Fortschritt.',
                           style: TextStyle(
                             color: TaqwaColors.muted,
@@ -279,7 +279,7 @@ class PartnerSection extends StatelessWidget {
                   ),
                   style: FilledButton.styleFrom(
                     backgroundColor: TaqwaColors.gold,
-                    foregroundColor: const Color(0xFF17120A),
+                    foregroundColor: TaqwaColors.onGold,
                     padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
                 ),
@@ -287,7 +287,7 @@ class PartnerSection extends StatelessWidget {
               const SizedBox(height: 6),
               TextButton(
                 onPressed: () => _showCodeDialog(context),
-                child: const Text(
+                child: Text(
                   'Code manuell eingeben',
                   style: TextStyle(color: TaqwaColors.muted, fontSize: 9),
                 ),
@@ -301,13 +301,13 @@ class PartnerSection extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
             child: Row(
               children: [
-                const Icon(
+                Icon(
                   Icons.notifications_active_outlined,
                   size: 15,
                   color: TaqwaColors.gold,
                 ),
                 const SizedBox(width: 8),
-                const Expanded(
+                Expanded(
                   child: Text(
                     'Deine Erinnerung wartet im QR-Code. Zeige ihn deinem Familienmitglied.',
                     style: TextStyle(
@@ -339,14 +339,14 @@ class PartnerSection extends StatelessWidget {
           TaqwaCard(
             child: Column(
               children: [
-                const Icon(Icons.qr_code_2, color: TaqwaColors.gold, size: 28),
+                Icon(Icons.qr_code_2, color: TaqwaColors.gold, size: 28),
                 const SizedBox(height: 7),
                 const Text(
                   'Noch keine Kopplung',
                   style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 4),
-                const Text(
+                Text(
                   'Einmal scannen genügt: Danach seht ihr eure Gebete und Habits gegenseitig.',
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 9, color: TaqwaColors.muted),
@@ -358,7 +358,7 @@ class PartnerSection extends StatelessWidget {
           for (final partner in partners)
             _PartnerCard(controller: c, partner: partner),
         const SizedBox(height: 10),
-        const TaqwaCard(
+        TaqwaCard(
           child: Row(
             children: [
               Icon(Icons.lock_outline, color: TaqwaColors.muted, size: 14),
@@ -533,7 +533,7 @@ class _PartnerCard extends StatelessWidget {
               children: [
                 CircleAvatar(
                   radius: 14,
-                  backgroundColor: const Color(0xFF251C0E),
+                  backgroundColor: TaqwaColors.chip,
                   foregroundColor: TaqwaColors.goldLight,
                   child: Text(
                     initials(partner.displayName),
@@ -557,10 +557,7 @@ class _PartnerCard extends StatelessWidget {
                             ? 'Stand: ${_relative(partner.snapshotAt)} · eigener Name, nur hier'
                             : 'Stand: ${_relative(partner.snapshotAt)}'
                                   '${stale ? ' · gestern oder älter' : ''}',
-                        style: const TextStyle(
-                          color: TaqwaColors.muted,
-                          fontSize: 8,
-                        ),
+                        style: TextStyle(color: TaqwaColors.muted, fontSize: 8),
                       ),
                     ],
                   ),
@@ -568,7 +565,7 @@ class _PartnerCard extends StatelessWidget {
                 PopupMenuButton<String>(
                   tooltip: 'Optionen',
                   color: TaqwaColors.card,
-                  icon: const Icon(
+                  icon: Icon(
                     Icons.more_vert,
                     size: 16,
                     color: TaqwaColors.muted,
@@ -634,7 +631,7 @@ class _PartnerCard extends StatelessWidget {
                 Expanded(child: Eyebrow('GEBETE HEUTE')),
                 Text(
                   '${partner.prayersDone}/5',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: TaqwaColors.goldLight,
                     fontSize: 9,
                     fontWeight: FontWeight.w700,
@@ -653,7 +650,7 @@ class _PartnerCard extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: partner.prayerDone(prayer)
                             ? TaqwaColors.green
-                            : const Color(0xFF242622),
+                            : TaqwaColors.border,
                         borderRadius: BorderRadius.circular(5),
                         border: Border.all(
                           color: partner.prayerDone(prayer)
@@ -686,7 +683,7 @@ class _PartnerCard extends StatelessWidget {
                   partner.habitsTotal == 0
                       ? '–'
                       : '${partner.habitsDone}/${partner.habitsTotal}',
-                  style: const TextStyle(color: TaqwaColors.muted, fontSize: 8),
+                  style: TextStyle(color: TaqwaColors.muted, fontSize: 8),
                 ),
               ],
             ),
@@ -705,7 +702,7 @@ class _PartnerCard extends StatelessWidget {
             const SizedBox(height: 8),
             Row(
               children: [
-                const Icon(
+                Icon(
                   Icons.local_fire_department,
                   size: 12,
                   color: TaqwaColors.gold,
@@ -713,13 +710,13 @@ class _PartnerCard extends StatelessWidget {
                 const SizedBox(width: 4),
                 Text(
                   '${partner.streak} Tage Streak',
-                  style: const TextStyle(color: TaqwaColors.muted, fontSize: 8),
+                  style: TextStyle(color: TaqwaColors.muted, fontSize: 8),
                 ),
                 const Spacer(),
                 if (partner.reminderAt != null)
                   Row(
                     children: [
-                      const Icon(
+                      Icon(
                         Icons.notifications_active,
                         size: 11,
                         color: TaqwaColors.green,
@@ -737,7 +734,7 @@ class _PartnerCard extends StatelessWidget {
               const SizedBox(height: 6),
               Text(
                 '„${partner.reminderText}“',
-                style: const TextStyle(
+                style: TextStyle(
                   color: TaqwaColors.green,
                   fontSize: 9,
                   height: 1.4,
@@ -839,7 +836,7 @@ class _FallbackLinkSheet extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.wifi_tethering, color: TaqwaColors.gold, size: 26),
+          Icon(Icons.wifi_tethering, color: TaqwaColors.gold, size: 26),
           const SizedBox(height: 8),
           const Text(
             'Noch nicht gegenseitig verknüpft',
@@ -851,7 +848,7 @@ class _FallbackLinkSheet extends StatelessWidget {
             'Zeige $partnerName jetzt deinen QR-Code und lasse ihn einmal '
             'scannen – danach sehen euch beide Seiten.',
             textAlign: TextAlign.center,
-            style: const TextStyle(
+            style: TextStyle(
               color: TaqwaColors.muted,
               fontSize: 10,
               height: 1.5,
@@ -867,7 +864,7 @@ class _FallbackLinkSheet extends StatelessWidget {
               onPressed: () => Navigator.of(context).pop(),
               style: FilledButton.styleFrom(
                 backgroundColor: TaqwaColors.gold,
-                foregroundColor: const Color(0xFF17120A),
+                foregroundColor: TaqwaColors.onGold,
               ),
               child: const Text('Fertig'),
             ),
@@ -916,7 +913,7 @@ class _RenameDialogState extends State<_RenameDialog> {
             hintText: 'z. B. Papa',
           ),
         ),
-        const Text(
+        Text(
           'Der Name gilt nur auf diesem Gerät. Der eigene Name der anderen '
           'Person bleibt unverändert.',
           style: TextStyle(color: TaqwaColors.muted, fontSize: 9, height: 1.45),

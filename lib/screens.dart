@@ -7,6 +7,7 @@ import 'package:hijri/hijri_calendar.dart';
 
 import 'app_controller.dart';
 import 'app_info.dart';
+import 'app_shortcuts.dart';
 import 'domain.dart';
 import 'feedback_screen.dart';
 import 'hadith_screen.dart';
@@ -22,15 +23,70 @@ import 'update_dialog.dart';
 import 'update_service.dart';
 
 class MainShell extends StatefulWidget {
-  const MainShell({super.key, required this.controller});
+  const MainShell({super.key, required this.controller, this.shortcuts});
+
   final TaqwaController controller;
+
+  /// Verbindung zu den Android-Schnellstartaktionen (Quran, Gebet, Familie).
+  final AppShortcutService? shortcuts;
+
   @override
   State<MainShell> createState() => _MainShellState();
 }
 
-class _MainShellState extends State<MainShell> {
+class _MainShellState extends State<MainShell>
+    with SingleTickerProviderStateMixin {
   int _tab = 1;
   bool _showMotivation = false;
+
+  /// Sanftes Einblenden beim Tabwechsel – der Zustand der Seiten bleibt
+  /// dabei vollständig erhalten (IndexedStack).
+  late final AnimationController _tabAnimation = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 260),
+    value: 1,
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    final shortcuts = widget.shortcuts;
+    if (shortcuts != null) {
+      shortcuts.listen(_applyShortcut);
+      shortcuts.initialShortcut().then((shortcut) {
+        if (mounted && shortcut != null) _applyShortcut(shortcut);
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _tabAnimation.dispose();
+    widget.shortcuts?.dispose();
+    super.dispose();
+  }
+
+  void _applyShortcut(AppShortcut shortcut) {
+    if (!mounted || !widget.controller.ready) return;
+    HapticFeedback.lightImpact();
+    switch (shortcut) {
+      case AppShortcut.quran:
+        _push(QuranScreen(controller: widget.controller));
+      case AppShortcut.prayer:
+        _selectTab(3);
+      case AppShortcut.family:
+        _selectTab(2);
+    }
+  }
+
+  void _selectTab(int index) {
+    if (_tab == index && !_showMotivation) return;
+    setState(() {
+      _tab = index;
+      _showMotivation = false;
+    });
+    _tabAnimation.forward(from: 0);
+  }
 
   @override
   Widget build(BuildContext context) => AnimatedBuilder(
@@ -48,7 +104,7 @@ class _MainShellState extends State<MainShell> {
         );
       }
       if (!c.ready || c.settings == null) {
-        return const Scaffold(
+        return Scaffold(
           body: Center(
             child: CircularProgressIndicator(color: TaqwaColors.gold),
           ),
@@ -84,9 +140,24 @@ class _MainShellState extends State<MainShell> {
                 child: Center(
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 520),
-                    child: IndexedStack(
-                      index: _showMotivation ? 1 : _tab,
-                      children: pages,
+                    child: AnimatedBuilder(
+                      animation: _tabAnimation,
+                      builder: (context, child) {
+                        final t = Curves.easeOutCubic.transform(
+                          _tabAnimation.value,
+                        );
+                        return Opacity(
+                          opacity: 0.45 + 0.55 * t,
+                          child: Transform.translate(
+                            offset: Offset(0, 10 * (1 - t)),
+                            child: child,
+                          ),
+                        );
+                      },
+                      child: IndexedStack(
+                        index: _showMotivation ? 1 : _tab,
+                        children: pages,
+                      ),
                     ),
                   ),
                 ),
@@ -94,13 +165,11 @@ class _MainShellState extends State<MainShell> {
             ),
             bottomNavigationBar: NavigationBar(
               selectedIndex: _tab,
-              onDestinationSelected: (i) => setState(() {
-                _tab = i;
-                _showMotivation = false;
-              }),
-              backgroundColor: const Color(0xF5101010),
-              indicatorColor: const Color(0xFF332510),
-              height: 60,
+              onDestinationSelected: _selectTab,
+              backgroundColor: TaqwaColors.navBackground,
+              indicatorColor: TaqwaColors.navIndicator,
+              elevation: 0,
+              height: 62,
               labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
               destinations: [
                 NavigationDestination(
@@ -211,7 +280,7 @@ class _GoldCelebrationState extends State<GoldCelebration>
                         height: 108,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          gradient: const LinearGradient(
+                          gradient: LinearGradient(
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
                             colors: [TaqwaColors.goldLight, TaqwaColors.gold],
@@ -224,14 +293,14 @@ class _GoldCelebrationState extends State<GoldCelebration>
                             ),
                           ],
                         ),
-                        child: const Icon(
+                        child: Icon(
                           Icons.star_rounded,
                           size: 58,
-                          color: Color(0xFF241A08),
+                          color: TaqwaColors.onGold,
                         ),
                       ),
                       const SizedBox(height: 18),
-                      const Text(
+                      Text(
                         'GOLD',
                         style: TextStyle(
                           color: TaqwaColors.goldLight,
@@ -241,7 +310,7 @@ class _GoldCelebrationState extends State<GoldCelebration>
                         ),
                       ),
                       const SizedBox(height: 4),
-                      const Text(
+                      Text(
                         '5 / 5 Gebete – Tag vollständig',
                         style: TextStyle(
                           color: TaqwaColors.text,
@@ -250,10 +319,10 @@ class _GoldCelebrationState extends State<GoldCelebration>
                         ),
                       ),
                       const SizedBox(height: 2),
-                      const Text(
+                      Text(
                         'Möge Allah deine Gebete annehmen.',
                         style: TextStyle(
-                          color: Color(0xCCF4F1E9),
+                          color: TaqwaColors.border,
                           fontSize: 10,
                         ),
                       ),
@@ -287,15 +356,15 @@ class RamadanCountdownCard extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 12),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(14),
-        gradient: const LinearGradient(
+        gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [Color(0xFF2A2110), Color(0xFF141210)],
+          colors: [TaqwaColors.goldBorder, TaqwaColors.panel],
         ),
-        border: Border.all(color: const Color(0xFF4A3A1B)),
-        boxShadow: const [
+        border: Border.all(color: TaqwaColors.goldBorder),
+        boxShadow: [
           BoxShadow(
-            color: Color(0x22000000),
+            color: TaqwaColors.shadow,
             blurRadius: 16,
             offset: Offset(0, 6),
           ),
@@ -308,10 +377,10 @@ class RamadanCountdownCard extends StatelessWidget {
             height: 46,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: const Color(0xFF1D170D),
+              color: TaqwaColors.panelDeep,
               border: Border.all(color: TaqwaColors.gold),
             ),
-            child: const Icon(
+            child: Icon(
               Icons.nightlight_round,
               color: TaqwaColors.goldLight,
               size: 22,
@@ -335,7 +404,7 @@ class RamadanCountdownCard extends StatelessWidget {
                       : days == 1
                       ? 'Noch 1 Tag'
                       : 'Noch $days Tage',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
                     color: TaqwaColors.goldLight,
@@ -347,7 +416,7 @@ class RamadanCountdownCard extends StatelessWidget {
                   running
                       ? 'Möge Allah dein Fasten annehmen.'
                       : 'Beginn: $dateLabel',
-                  style: const TextStyle(color: TaqwaColors.muted, fontSize: 9),
+                  style: TextStyle(color: TaqwaColors.muted, fontSize: 9),
                 ),
               ],
             ),
@@ -357,14 +426,14 @@ class RamadanCountdownCard extends StatelessWidget {
               children: [
                 Text(
                   '$days',
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 26,
                     fontWeight: FontWeight.w900,
                     color: TaqwaColors.text,
                     height: 1,
                   ),
                 ),
-                const Text(
+                Text(
                   'TAGE',
                   style: TextStyle(
                     color: TaqwaColors.muted,
@@ -454,7 +523,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  const Text(
+                  Text(
                     'Schön, dass du heute da bist.',
                     style: TextStyle(color: TaqwaColors.muted, fontSize: 10),
                   ),
@@ -465,7 +534,7 @@ class _HomeScreenState extends State<HomeScreen> {
               onTap: widget.onProfile,
               child: CircleAvatar(
                 radius: 19,
-                backgroundColor: const Color(0xFF241B0D),
+                backgroundColor: TaqwaColors.chip,
                 foregroundColor: TaqwaColors.goldLight,
                 child: Text(
                   initials(settings.name),
@@ -506,7 +575,7 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               Row(
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.location_on_outlined,
                     color: TaqwaColors.gold,
                     size: 14,
@@ -523,10 +592,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   Text(
                     hijri,
-                    style: const TextStyle(
-                      color: TaqwaColors.muted,
-                      fontSize: 8,
-                    ),
+                    style: TextStyle(color: TaqwaColors.muted, fontSize: 8),
                   ),
                 ],
               ),
@@ -551,7 +617,7 @@ class _HomeScreenState extends State<HomeScreen> {
               Center(
                 child: Text(
                   '${c.completedPrayers}/5 erledigt  ·  ${settings.streak} Tage Streak',
-                  style: const TextStyle(color: TaqwaColors.muted, fontSize: 9),
+                  style: TextStyle(color: TaqwaColors.muted, fontSize: 9),
                 ),
               ),
             ],
@@ -570,9 +636,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       border: Border.all(color: TaqwaColors.gold),
-                      color: const Color(0xFF211A0D),
+                      color: TaqwaColors.chip,
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.auto_awesome,
                       color: TaqwaColors.goldLight,
                       size: 16,
@@ -596,7 +662,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   TextButton(
                     onPressed: widget.onMotivation,
-                    child: const Text(
+                    child: Text(
                       'Ansehen ›',
                       style: TextStyle(
                         color: TaqwaColors.goldLight,
@@ -635,9 +701,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       border: Border.all(color: TaqwaColors.gold),
-                      color: const Color(0xFF211A0D),
+                      color: TaqwaColors.chip,
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.menu_book,
                       color: TaqwaColors.goldLight,
                       size: 16,
@@ -659,7 +725,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ],
                     ),
                   ),
-                  const Icon(
+                  Icon(
                     Icons.chevron_right,
                     size: 18,
                     color: TaqwaColors.goldLight,
@@ -689,9 +755,9 @@ class _HomeScreenState extends State<HomeScreen> {
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       border: Border.all(color: TaqwaColors.gold),
-                      color: const Color(0xFF211A0D),
+                      color: TaqwaColors.chip,
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.fingerprint,
                       color: TaqwaColors.goldLight,
                       size: 18,
@@ -713,7 +779,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       ],
                     ),
                   ),
-                  const Icon(
+                  Icon(
                     Icons.chevron_right,
                     size: 18,
                     color: TaqwaColors.goldLight,
@@ -799,7 +865,7 @@ class _NextPrayerPanelState extends State<NextPrayerPanel> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 10),
         decoration: BoxDecoration(
-          color: const Color(0xFF211A10),
+          color: TaqwaColors.chip,
           borderRadius: BorderRadius.circular(10),
         ),
         child: Row(
@@ -808,11 +874,11 @@ class _NextPrayerPanelState extends State<NextPrayerPanel> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Eyebrow('Nächstes Gebet', color: TaqwaColors.gold),
+                  Eyebrow('Nächstes Gebet', color: TaqwaColors.gold),
                   const SizedBox(height: 4),
                   Text(
                     prayerNames[next]!,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontWeight: FontWeight.w700,
                       color: TaqwaColors.goldLight,
                       fontSize: 16,
@@ -820,10 +886,7 @@ class _NextPrayerPanelState extends State<NextPrayerPanel> {
                   ),
                   Text(
                     '$dayLabel · ${formatClock(target)}',
-                    style: const TextStyle(
-                      color: TaqwaColors.muted,
-                      fontSize: 9,
-                    ),
+                    style: TextStyle(color: TaqwaColors.muted, fontSize: 9),
                   ),
                 ],
               ),
@@ -833,14 +896,14 @@ class _NextPrayerPanelState extends State<NextPrayerPanel> {
               children: [
                 Text(
                   _duration(remaining),
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: TaqwaColors.goldLight,
                     fontWeight: FontWeight.w700,
                     fontSize: 15,
                     fontFeatures: [FontFeature.tabularFigures()],
                   ),
                 ),
-                const Text(
+                Text(
                   'verbleibend',
                   style: TextStyle(color: TaqwaColors.muted, fontSize: 8),
                 ),
@@ -884,16 +947,13 @@ class _StatCard extends StatelessWidget {
         const SizedBox(height: 5),
         Text(
           value,
-          style: const TextStyle(
+          style: TextStyle(
             color: TaqwaColors.goldLight,
             fontSize: 16,
             fontWeight: FontWeight.w800,
           ),
         ),
-        Text(
-          detail,
-          style: const TextStyle(color: TaqwaColors.muted, fontSize: 9),
-        ),
+        Text(detail, style: TextStyle(color: TaqwaColors.muted, fontSize: 9)),
       ],
     ),
   );
@@ -930,7 +990,7 @@ class _PrayerTile extends StatelessWidget {
           duration: const Duration(milliseconds: 220),
           padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 2),
           decoration: BoxDecoration(
-            color: done ? const Color(0xFF35260F) : const Color(0xFF111111),
+            color: done ? TaqwaColors.goldBorder : TaqwaColors.panel,
             border: Border.all(
               color: done ? TaqwaColors.gold : TaqwaColors.border,
             ),
@@ -948,7 +1008,7 @@ class _PrayerTile extends StatelessWidget {
               const SizedBox(height: 4),
               Text(
                 formatClock(time),
-                style: const TextStyle(color: TaqwaColors.muted, fontSize: 8),
+                style: TextStyle(color: TaqwaColors.muted, fontSize: 8),
               ),
               const SizedBox(height: 5),
               AnimatedContainer(
@@ -959,16 +1019,15 @@ class _PrayerTile extends StatelessWidget {
                   shape: BoxShape.circle,
                   color: done ? TaqwaColors.gold : Colors.transparent,
                   border: Border.all(
-                    color: done ? TaqwaColors.gold : const Color(0xFF5A5A54),
+                    color: done ? TaqwaColors.gold : TaqwaColors.mutedStrong,
                   ),
                 ),
-                child: done
-                    ? const Icon(
-                        Icons.check,
-                        size: 12,
-                        color: Color(0xFF17120A),
-                      )
-                    : null,
+                child: AnimatedScale(
+                  scale: done ? 1 : 0,
+                  duration: const Duration(milliseconds: 240),
+                  curve: Curves.easeOutBack,
+                  child: Icon(Icons.check, size: 12, color: TaqwaColors.onGold),
+                ),
               ),
             ],
           ),
@@ -1065,7 +1124,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     child: Center(
                       child: Text(
                         monthLabel,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: TaqwaColors.goldLight,
                           fontSize: 12,
                           fontWeight: FontWeight.w700,
@@ -1082,7 +1141,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
               ),
               Row(
                 children: [
-                  const SizedBox(
+                  SizedBox(
                     width: 75,
                     child: Text(
                       'WOCHE',
@@ -1135,7 +1194,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                           children: [
                             Text(
                               formatDate(context, 'E', d),
-                              style: const TextStyle(
+                              style: TextStyle(
                                 color: TaqwaColors.muted,
                                 fontSize: 8,
                               ),
@@ -1155,7 +1214,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                                 '${d.day}',
                                 style: TextStyle(
                                   color: dayKey(d) == dayKey(DateTime.now())
-                                      ? const Color(0xFF15120B)
+                                      ? TaqwaColors.panelDeep
                                       : TaqwaColors.text,
                                   fontSize: 9,
                                   fontWeight: FontWeight.w700,
@@ -1208,7 +1267,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     onPressed: _addHabit,
                     style: FilledButton.styleFrom(
                       backgroundColor: TaqwaColors.gold,
-                      foregroundColor: const Color(0xFF17120A),
+                      foregroundColor: TaqwaColors.onGold,
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                     ),
                     child: const Icon(Icons.add, size: 18),
@@ -1234,8 +1293,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
                   ])
                     ActionChip(
                       label: Text(item, style: const TextStyle(fontSize: 9)),
-                      backgroundColor: const Color(0xFF1B1913),
-                      side: const BorderSide(color: TaqwaColors.border),
+                      backgroundColor: TaqwaColors.panel,
+                      side: BorderSide(color: TaqwaColors.border),
                       onPressed: () => c.addHabit(item),
                     ),
                 ],
@@ -1258,13 +1317,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       value: monthProgress,
                       strokeWidth: 3,
                       backgroundColor: TaqwaColors.border,
-                      valueColor: const AlwaysStoppedAnimation(
-                        TaqwaColors.gold,
-                      ),
+                      valueColor: AlwaysStoppedAnimation(TaqwaColors.gold),
                     ),
                     Text(
                       '${(monthProgress * 100).round()}%',
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: TaqwaColors.goldLight,
                         fontSize: 9,
                         fontWeight: FontWeight.bold,
@@ -1287,10 +1344,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                     ),
                     Text(
                       '${c.completedHabits} von ${c.habits.length} Habits heute erledigt',
-                      style: const TextStyle(
-                        color: TaqwaColors.muted,
-                        fontSize: 9,
-                      ),
+                      style: TextStyle(color: TaqwaColors.muted, fontSize: 9),
                     ),
                   ],
                 ),
@@ -1298,7 +1352,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
               Text(
                 '${c.settings!.streak}\nTage',
                 textAlign: TextAlign.center,
-                style: const TextStyle(
+                style: TextStyle(
                   color: TaqwaColors.goldLight,
                   fontSize: 9,
                   fontWeight: FontWeight.w700,
@@ -1340,8 +1394,8 @@ class _HabitMatrixRow extends StatelessWidget {
     margin: const EdgeInsets.only(top: 4),
     padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 5),
     decoration: BoxDecoration(
-      color: const Color(0xFF101512),
-      border: Border.all(color: const Color(0xFF28453B)),
+      color: TaqwaColors.greenSurface,
+      border: Border.all(color: TaqwaColors.greenSurface),
       borderRadius: BorderRadius.circular(8),
     ),
     child: Row(
@@ -1355,17 +1409,13 @@ class _HabitMatrixRow extends StatelessWidget {
                   habit.name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 9, color: TaqwaColors.text),
+                  style: TextStyle(fontSize: 9, color: TaqwaColors.text),
                 ),
               ),
               if (editing)
                 GestureDetector(
                   onTap: onRemove,
-                  child: const Icon(
-                    Icons.close,
-                    color: TaqwaColors.red,
-                    size: 12,
-                  ),
+                  child: Icon(Icons.close, color: TaqwaColors.red, size: 12),
                 ),
             ],
           ),
@@ -1411,7 +1461,7 @@ class _StatusCell extends StatelessWidget {
       HabitStatus.done => (TaqwaColors.green, Icons.check),
       HabitStatus.partial => (TaqwaColors.gold, Icons.check),
       HabitStatus.missed => (TaqwaColors.red, Icons.close),
-      HabitStatus.empty => (const Color(0xFF171A18), null),
+      HabitStatus.empty => (TaqwaColors.panel, null),
     };
     return Semantics(
       button: true,
@@ -1430,7 +1480,7 @@ class _StatusCell extends StatelessWidget {
               color: isToday
                   ? TaqwaColors.goldLight
                   : (status == HabitStatus.empty
-                        ? const Color(0xFF34433C)
+                        ? TaqwaColors.greenSurface
                         : color),
             ),
             boxShadow: status == HabitStatus.empty
@@ -1448,7 +1498,7 @@ class _StatusCell extends StatelessWidget {
                   icon,
                   size: 13,
                   color: status == HabitStatus.partial
-                      ? const Color(0xFF332508)
+                      ? TaqwaColors.onGold
                       : Colors.white,
                 ),
         ),
@@ -1481,7 +1531,7 @@ class _FamilyScreenState extends State<FamilyScreen> {
           ),
         ),
         const SizedBox(height: 14),
-        const TaqwaCard(
+        TaqwaCard(
           goldBorder: true,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1557,8 +1607,8 @@ class MotivationScreen extends StatelessWidget {
                   boxShadow: const [
                     BoxShadow(color: Color(0x44E5A93C), blurRadius: 24),
                   ],
-                  gradient: const RadialGradient(
-                    colors: [Color(0xFF3B2A10), Color(0xFF14120E)],
+                  gradient: RadialGradient(
+                    colors: [TaqwaColors.goldBorder, TaqwaColors.panel],
                   ),
                 ),
                 child: Column(
@@ -1566,13 +1616,13 @@ class MotivationScreen extends StatelessWidget {
                   children: [
                     Text(
                       '${settings.streak}',
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: TaqwaColors.goldLight,
                         fontSize: 53,
                         fontWeight: FontWeight.w800,
                       ),
                     ),
-                    const Text(
+                    Text(
                       'TAGE IN FOLGE',
                       style: TextStyle(
                         color: TaqwaColors.gold,
@@ -1584,7 +1634,7 @@ class MotivationScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 14),
-              const Text(
+              Text(
                 'Mashallah, halt durch!',
                 style: TextStyle(
                   color: TaqwaColors.goldLight,
@@ -1593,7 +1643,7 @@ class MotivationScreen extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 5),
-              const Text(
+              Text(
                 'Jeder beständige Schritt zählt.',
                 style: TextStyle(color: TaqwaColors.muted, fontSize: 10),
               ),
@@ -1605,7 +1655,7 @@ class MotivationScreen extends StatelessWidget {
                   ),
                   Text(
                     'Lvl ${level + 1}',
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: TaqwaColors.goldLight,
                       fontSize: 10,
                     ),
@@ -1625,18 +1675,12 @@ class MotivationScreen extends StatelessWidget {
                 children: [
                   Text(
                     '${settings.xp} XP',
-                    style: const TextStyle(
-                      color: TaqwaColors.muted,
-                      fontSize: 9,
-                    ),
+                    style: TextStyle(color: TaqwaColors.muted, fontSize: 9),
                   ),
                   const Spacer(),
                   Text(
                     '${math.max(0, upper - settings.xp)} XP bis Level ${level + 1}',
-                    style: const TextStyle(
-                      color: TaqwaColors.muted,
-                      fontSize: 9,
-                    ),
+                    style: TextStyle(color: TaqwaColors.muted, fontSize: 9),
                   ),
                 ],
               ),
@@ -1644,7 +1688,7 @@ class MotivationScreen extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 12),
-        const TaqwaCard(
+        TaqwaCard(
           child: Text(
             '„Die besten Taten sind die, die beständig sind.“',
             textAlign: TextAlign.center,
@@ -1680,7 +1724,7 @@ class ProfileScreen extends StatelessWidget {
               children: [
                 CircleAvatar(
                   radius: 28,
-                  backgroundColor: const Color(0xFF251C0E),
+                  backgroundColor: TaqwaColors.chip,
                   foregroundColor: TaqwaColors.goldLight,
                   child: Text(
                     initials(controller.settings!.name),
@@ -1728,7 +1772,7 @@ class ProfileScreen extends StatelessWidget {
               children: [
                 ProfileQrCard(snapshot: controller.profileSnapshot, size: 150),
                 const SizedBox(height: 4),
-                const Text(
+                Text(
                   'Zeige diesen Code deinem Familienmitglied – ein Scan '
                   'genügt, um euren Fortschritt zu teilen.',
                   textAlign: TextAlign.center,
@@ -1847,259 +1891,281 @@ class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key, required this.controller});
   final TaqwaController controller;
   @override
-  Widget build(BuildContext context) {
-    final settings = controller.settings!;
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Einstellungen', style: TextStyle(fontSize: 15)),
-        centerTitle: true,
-      ),
-      body: StarField(
-        child: ListView(
-          padding: const EdgeInsets.all(15),
-          children: [
-            const Eyebrow('DARSTELLUNG & SPRACHE'),
-            const SizedBox(height: 8),
-            TaqwaCard(
-              child: Column(
-                children: [
-                  DropdownButtonFormField<String>(
-                    initialValue: settings.language,
-                    decoration: const InputDecoration(labelText: 'Sprache'),
-                    items: [
-                      for (final language in appLanguages)
-                        DropdownMenuItem(
-                          value: language.code,
-                          child: Text(
-                            '${language.nativeName} · ${language.englishName}',
-                            style: const TextStyle(fontSize: 12),
+  Widget build(BuildContext context) => AnimatedBuilder(
+    animation: controller,
+    builder: (context, _) {
+      final settings = controller.settings!;
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Einstellungen', style: TextStyle(fontSize: 15)),
+          centerTitle: true,
+        ),
+        body: StarField(
+          child: ListView(
+            padding: const EdgeInsets.all(15),
+            children: [
+              const Eyebrow('DARSTELLUNG & SPRACHE'),
+              const SizedBox(height: 8),
+              TaqwaCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Erscheinungsbild',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Automatisch nach System oder fest hell bzw. dunkel.',
+                      style: TextStyle(color: TaqwaColors.muted, fontSize: 9),
+                    ),
+                    const SizedBox(height: 10),
+                    _ThemeModeSelector(
+                      value: settings.themeMode,
+                      onChanged: controller.setThemeMode,
+                    ),
+                    const SizedBox(height: 10),
+                    DropdownButtonFormField<String>(
+                      initialValue: settings.language,
+                      decoration: const InputDecoration(labelText: 'Sprache'),
+                      items: [
+                        for (final language in appLanguages)
+                          DropdownMenuItem(
+                            value: language.code,
+                            child: Text(
+                              '${language.nativeName} · ${language.englishName}',
+                              style: const TextStyle(fontSize: 12),
+                            ),
+                          ),
+                      ],
+                      onChanged: (value) {
+                        if (value != null) controller.setLanguage(value);
+                      },
+                    ),
+                    if (settings.themeMode != 'light')
+                      SwitchListTile.adaptive(
+                        contentPadding: EdgeInsets.zero,
+                        value: settings.oled,
+                        activeThumbColor: TaqwaColors.gold,
+                        title: const Text(
+                          'OLED-Schwarzmodus',
+                          style: TextStyle(fontSize: 11),
+                        ),
+                        subtitle: const Text(
+                          'Echtes Schwarz statt Dunkelgrau',
+                          style: TextStyle(fontSize: 9),
+                        ),
+                        onChanged: controller.setOled,
+                      ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+              const Eyebrow('BENACHRICHTIGUNGEN'),
+              const SizedBox(height: 8),
+              TaqwaCard(
+                child: Column(
+                  children: [
+                    SwitchListTile.adaptive(
+                      contentPadding: EdgeInsets.zero,
+                      value: settings.adhanEnabled,
+                      activeThumbColor: TaqwaColors.gold,
+                      title: const Text(
+                        'Gebets-Erinnerungen',
+                        style: TextStyle(fontSize: 11),
+                      ),
+                      subtitle: const Text(
+                        'Lokale Benachrichtigung mit Signalton',
+                        style: TextStyle(fontSize: 9),
+                      ),
+                      onChanged: (value) => controller.setAdhan(
+                        enabled: value,
+                        minutesBefore: settings.adhanMinutesBefore,
+                      ),
+                    ),
+                    if (settings.adhanEnabled)
+                      DropdownButtonFormField<int>(
+                        initialValue: settings.adhanMinutesBefore,
+                        decoration: const InputDecoration(
+                          labelText: 'Erinnern',
+                        ),
+                        items: const [
+                          DropdownMenuItem(
+                            value: 0,
+                            child: Text('Zur Gebetszeit'),
+                          ),
+                          DropdownMenuItem(
+                            value: 5,
+                            child: Text('5 Minuten vorher'),
+                          ),
+                          DropdownMenuItem(
+                            value: 10,
+                            child: Text('10 Minuten vorher'),
+                          ),
+                          DropdownMenuItem(
+                            value: 15,
+                            child: Text('15 Minuten vorher'),
+                          ),
+                          DropdownMenuItem(
+                            value: 30,
+                            child: Text('30 Minuten vorher'),
+                          ),
+                        ],
+                        onChanged: (value) {
+                          if (value != null) {
+                            controller.setAdhan(
+                              enabled: true,
+                              minutesBefore: value,
+                            );
+                          }
+                        },
+                      ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Hinweis: Android kann Benachrichtigungen bei aktivierter '
+                      'Akku-Optimierung verzögern. Erlaube Benachrichtigungen in '
+                      'den Systemeinstellungen.',
+                      style: TextStyle(
+                        color: TaqwaColors.muted,
+                        fontSize: 8,
+                        height: 1.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 14),
+              const Eyebrow('GEBETSZEITEN'),
+              const SizedBox(height: 8),
+              TaqwaCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Standort: ${settings.locationName}',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 12,
+                      ),
+                    ),
+                    Text(
+                      '${settings.latitude.toStringAsFixed(4)}, ${settings.longitude.toStringAsFixed(4)}',
+                      style: TextStyle(color: TaqwaColors.muted, fontSize: 9),
+                    ),
+                    const SizedBox(height: 7),
+                    Wrap(
+                      spacing: 6,
+                      children: [
+                        OutlinedButton.icon(
+                          onPressed: () async {
+                            try {
+                              await controller.useDeviceLocation();
+                            } catch (e) {
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(
+                                      e.toString().replaceFirst(
+                                        'Bad state: ',
+                                        '',
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              }
+                            }
+                          },
+                          icon: const Icon(Icons.my_location, size: 14),
+                          label: const Text(
+                            'GPS verwenden',
+                            style: TextStyle(fontSize: 9),
                           ),
                         ),
-                    ],
-                    onChanged: (value) {
-                      if (value != null) controller.setLanguage(value);
-                    },
-                  ),
-                  SwitchListTile.adaptive(
-                    contentPadding: EdgeInsets.zero,
-                    value: settings.oled,
-                    activeThumbColor: TaqwaColors.gold,
-                    title: const Text(
-                      'OLED-Schwarzmodus',
-                      style: TextStyle(fontSize: 11),
+                        OutlinedButton.icon(
+                          onPressed: () => _editCoordinates(context),
+                          icon: const Icon(Icons.edit_location_alt, size: 14),
+                          label: const Text(
+                            'Koordinaten',
+                            style: TextStyle(fontSize: 9),
+                          ),
+                        ),
+                      ],
                     ),
-                    subtitle: const Text(
-                      'Echtes Schwarz statt Dunkelgrau',
-                      style: TextStyle(fontSize: 9),
-                    ),
-                    onChanged: controller.setOled,
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(height: 14),
-            const Eyebrow('BENACHRICHTIGUNGEN'),
-            const SizedBox(height: 8),
-            TaqwaCard(
-              child: Column(
-                children: [
-                  SwitchListTile.adaptive(
-                    contentPadding: EdgeInsets.zero,
-                    value: settings.adhanEnabled,
-                    activeThumbColor: TaqwaColors.gold,
-                    title: const Text(
-                      'Gebets-Erinnerungen',
-                      style: TextStyle(fontSize: 11),
-                    ),
-                    subtitle: const Text(
-                      'Lokale Benachrichtigung mit Signalton',
-                      style: TextStyle(fontSize: 9),
-                    ),
-                    onChanged: (value) => controller.setAdhan(
-                      enabled: value,
-                      minutesBefore: settings.adhanMinutesBefore,
-                    ),
-                  ),
-                  if (settings.adhanEnabled)
-                    DropdownButtonFormField<int>(
-                      initialValue: settings.adhanMinutesBefore,
-                      decoration: const InputDecoration(labelText: 'Erinnern'),
+              const SizedBox(height: 14),
+              const Eyebrow('BERECHNUNG'),
+              const SizedBox(height: 8),
+              TaqwaCard(
+                child: Column(
+                  children: [
+                    DropdownButtonFormField<String>(
+                      initialValue: settings.calculationMethod,
+                      decoration: const InputDecoration(labelText: 'Methode'),
                       items: const [
                         DropdownMenuItem(
-                          value: 0,
-                          child: Text('Zur Gebetszeit'),
+                          value: 'muslim_world_league',
+                          child: Text('Muslim World League'),
                         ),
                         DropdownMenuItem(
-                          value: 5,
-                          child: Text('5 Minuten vorher'),
+                          value: 'karachi',
+                          child: Text('Karachi'),
                         ),
                         DropdownMenuItem(
-                          value: 10,
-                          child: Text('10 Minuten vorher'),
+                          value: 'egyptian',
+                          child: Text('Ägyptische Behörde'),
                         ),
                         DropdownMenuItem(
-                          value: 15,
-                          child: Text('15 Minuten vorher'),
+                          value: 'umm_al_qura',
+                          child: Text('Umm al-Qura'),
                         ),
                         DropdownMenuItem(
-                          value: 30,
-                          child: Text('30 Minuten vorher'),
+                          value: 'north_america',
+                          child: Text('ISNA / Nordamerika'),
                         ),
                       ],
                       onChanged: (value) {
                         if (value != null) {
-                          controller.setAdhan(
-                            enabled: true,
-                            minutesBefore: value,
-                          );
+                          controller.updateCalculation(method: value);
                         }
                       },
                     ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    'Hinweis: Android kann Benachrichtigungen bei aktivierter '
-                    'Akku-Optimierung verzögern. Erlaube Benachrichtigungen in '
-                    'den Systemeinstellungen.',
-                    style: TextStyle(
-                      color: TaqwaColors.muted,
-                      fontSize: 8,
-                      height: 1.5,
+                    const SizedBox(height: 8),
+                    SwitchListTile.adaptive(
+                      contentPadding: EdgeInsets.zero,
+                      value: settings.hanafi,
+                      activeThumbColor: TaqwaColors.gold,
+                      title: const Text(
+                        'Hanafi (spätere Asr-Zeit)',
+                        style: TextStyle(fontSize: 11),
+                      ),
+                      onChanged: (value) =>
+                          controller.updateCalculation(hanafi: value),
                     ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 14),
-            const Eyebrow('GEBETSZEITEN'),
-            const SizedBox(height: 8),
-            TaqwaCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Standort: ${settings.locationName}',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w700,
-                      fontSize: 12,
-                    ),
-                  ),
-                  Text(
-                    '${settings.latitude.toStringAsFixed(4)}, ${settings.longitude.toStringAsFixed(4)}',
-                    style: const TextStyle(
-                      color: TaqwaColors.muted,
-                      fontSize: 9,
-                    ),
-                  ),
-                  const SizedBox(height: 7),
-                  Wrap(
-                    spacing: 6,
-                    children: [
-                      OutlinedButton.icon(
-                        onPressed: () async {
-                          try {
-                            await controller.useDeviceLocation();
-                          } catch (e) {
-                            if (context.mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(
-                                  content: Text(
-                                    e.toString().replaceFirst(
-                                      'Bad state: ',
-                                      '',
-                                    ),
-                                  ),
-                                ),
-                              );
-                            }
-                          }
-                        },
-                        icon: const Icon(Icons.my_location, size: 14),
-                        label: const Text(
-                          'GPS verwenden',
-                          style: TextStyle(fontSize: 9),
-                        ),
-                      ),
-                      OutlinedButton.icon(
-                        onPressed: () => _editCoordinates(context),
-                        icon: const Icon(Icons.edit_location_alt, size: 14),
-                        label: const Text(
-                          'Koordinaten',
-                          style: TextStyle(fontSize: 9),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 14),
-            const Eyebrow('BERECHNUNG'),
-            const SizedBox(height: 8),
-            TaqwaCard(
-              child: Column(
-                children: [
-                  DropdownButtonFormField<String>(
-                    initialValue: settings.calculationMethod,
-                    decoration: const InputDecoration(labelText: 'Methode'),
-                    items: const [
-                      DropdownMenuItem(
-                        value: 'muslim_world_league',
-                        child: Text('Muslim World League'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'karachi',
-                        child: Text('Karachi'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'egyptian',
-                        child: Text('Ägyptische Behörde'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'umm_al_qura',
-                        child: Text('Umm al-Qura'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'north_america',
-                        child: Text('ISNA / Nordamerika'),
-                      ),
-                    ],
-                    onChanged: (value) {
-                      if (value != null) {
-                        controller.updateCalculation(method: value);
-                      }
-                    },
-                  ),
-                  const SizedBox(height: 8),
-                  SwitchListTile.adaptive(
-                    contentPadding: EdgeInsets.zero,
-                    value: settings.hanafi,
-                    activeThumbColor: TaqwaColors.gold,
-                    title: const Text(
-                      'Hanafi (spätere Asr-Zeit)',
-                      style: TextStyle(fontSize: 11),
-                    ),
-                    onChanged: (value) =>
-                        controller.updateCalculation(hanafi: value),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 13),
-            const TaqwaCard(
-              child: Text(
-                'Gebetszeiten werden lokal mit der Adhan-Bibliothek aus Standort, Datum, Methode und Madhab berechnet.',
-                style: TextStyle(
-                  color: TaqwaColors.muted,
-                  fontSize: 10,
-                  height: 1.5,
+                  ],
                 ),
               ),
-            ),
-          ],
+              const SizedBox(height: 13),
+              TaqwaCard(
+                child: Text(
+                  'Gebetszeiten werden lokal mit der Adhan-Bibliothek aus Standort, Datum, Methode und Madhab berechnet.',
+                  style: TextStyle(
+                    color: TaqwaColors.muted,
+                    fontSize: 10,
+                    height: 1.5,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
-      ),
-    );
-  }
+      );
+    },
+  );
 
   Future<void> _editCoordinates(BuildContext context) async {
     final label = TextEditingController(
@@ -2187,17 +2253,84 @@ class _ProfileStat extends StatelessWidget {
     children: [
       Text(
         value,
-        style: const TextStyle(
+        style: TextStyle(
           color: TaqwaColors.goldLight,
           fontWeight: FontWeight.w700,
           fontSize: 13,
         ),
       ),
       const SizedBox(height: 3),
-      Text(
-        label,
-        style: const TextStyle(color: TaqwaColors.muted, fontSize: 9),
-      ),
+      Text(label, style: TextStyle(color: TaqwaColors.muted, fontSize: 9)),
+    ],
+  );
+}
+
+class _ThemeModeSelector extends StatelessWidget {
+  const _ThemeModeSelector({required this.value, required this.onChanged});
+
+  final String value;
+  final ValueChanged<String> onChanged;
+
+  static const _options = [
+    ('system', 'System', Icons.brightness_auto_outlined),
+    ('light', 'Hell', Icons.light_mode_outlined),
+    ('dark', 'Dunkel', Icons.dark_mode_outlined),
+  ];
+
+  @override
+  Widget build(BuildContext context) => Row(
+    children: [
+      for (final (id, label, icon) in _options) ...[
+        Expanded(
+          child: Padding(
+            padding: const EdgeInsets.only(right: 6),
+            child: InkWell(
+              key: ValueKey('theme-mode-$id'),
+              borderRadius: BorderRadius.circular(10),
+              onTap: () {
+                HapticFeedback.selectionClick();
+                onChanged(id);
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: const EdgeInsets.symmetric(vertical: 9),
+                decoration: BoxDecoration(
+                  color: value == id ? TaqwaColors.chip : TaqwaColors.panel,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: value == id ? TaqwaColors.gold : TaqwaColors.border,
+                    width: value == id ? 1.4 : 1,
+                  ),
+                ),
+                child: Column(
+                  children: [
+                    Icon(
+                      icon,
+                      size: 17,
+                      color: value == id
+                          ? TaqwaColors.goldLight
+                          : TaqwaColors.muted,
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      label,
+                      style: TextStyle(
+                        fontSize: 9,
+                        fontWeight: value == id
+                            ? FontWeight.w700
+                            : FontWeight.w500,
+                        color: value == id
+                            ? TaqwaColors.goldLight
+                            : TaqwaColors.muted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
     ],
   );
 }
@@ -2226,7 +2359,7 @@ class _SettingsTile extends StatelessWidget {
         ),
         subtitle: Text(
           subtitle,
-          style: const TextStyle(fontSize: 9, color: TaqwaColors.muted),
+          style: TextStyle(fontSize: 9, color: TaqwaColors.muted),
         ),
         trailing: const Icon(Icons.chevron_right, size: 16),
         onTap: onTap,

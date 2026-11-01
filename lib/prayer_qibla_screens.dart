@@ -137,7 +137,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Eyebrow('ALLE GEBETE HEUTE', color: TaqwaColors.gold),
+              Eyebrow('ALLE GEBETE HEUTE', color: TaqwaColors.gold),
               const SizedBox(height: 3),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.end,
@@ -153,7 +153,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
                   ),
                   Text(
                     formatClock(now),
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: TaqwaColors.goldLight,
                       fontWeight: FontWeight.w700,
                       fontSize: 13,
@@ -164,7 +164,7 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
               const SizedBox(height: 4),
               Row(
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.location_on_outlined,
                     size: 12,
                     color: TaqwaColors.gold,
@@ -174,18 +174,12 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
                     child: Text(
                       '${settings.locationName} · '
                       '${formatDate(context, 'EEE, d. MMM yyyy', now)}',
-                      style: const TextStyle(
-                        color: TaqwaColors.muted,
-                        fontSize: 9,
-                      ),
+                      style: TextStyle(color: TaqwaColors.muted, fontSize: 9),
                     ),
                   ),
                   Text(
                     HijriCalendar.fromDate(now).toFormat('dd MMMM yyyy'),
-                    style: const TextStyle(
-                      color: TaqwaColors.muted,
-                      fontSize: 8,
-                    ),
+                    style: TextStyle(color: TaqwaColors.muted, fontSize: 8),
                   ),
                 ],
               ),
@@ -213,17 +207,13 @@ class _PrayerTimesScreenState extends State<PrayerTimesScreen> {
                       : (c.todayPrayers[entries[i].prayer!] ?? false),
                 ),
                 if (i != entries.length - 1)
-                  const Divider(
-                    height: 1,
-                    thickness: 0.5,
-                    color: Color(0xFF2A2721),
-                  ),
+                  Divider(height: 1, thickness: 0.5, color: TaqwaColors.border),
               ],
             ],
           ),
         ),
         const SizedBox(height: 9),
-        const Center(
+        Center(
           child: Text(
             'Offline berechnet nach deiner eingestellten Methode.',
             style: TextStyle(color: TaqwaColors.muted, fontSize: 8),
@@ -260,9 +250,9 @@ class _DailyHabitCard extends StatelessWidget {
               : TaqwaColors.green.withValues(alpha: 0.55),
           width: 1.2,
         ),
-        boxShadow: const [
+        boxShadow: [
           BoxShadow(
-            color: Color(0x44000000),
+            color: TaqwaColors.shadow,
             blurRadius: 16,
             offset: Offset(0, 6),
           ),
@@ -310,7 +300,7 @@ class _DailyHabitCard extends StatelessWidget {
               ),
               Text(
                 dateLabel,
-                style: const TextStyle(color: TaqwaColors.muted, fontSize: 9),
+                style: TextStyle(color: TaqwaColors.muted, fontSize: 9),
               ),
             ],
           ),
@@ -323,7 +313,7 @@ class _DailyHabitCard extends StatelessWidget {
               builder: (context, value, _) => LinearProgressIndicator(
                 value: value,
                 minHeight: 7,
-                backgroundColor: const Color(0xFF241F16),
+                backgroundColor: TaqwaColors.goldBorder,
                 valueColor: AlwaysStoppedAnimation<Color>(accent),
               ),
             ),
@@ -407,9 +397,7 @@ class _HabitPrayerRow extends StatelessWidget {
         duration: const Duration(milliseconds: 250),
         padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 8),
         decoration: BoxDecoration(
-          color: done
-              ? accent.withValues(alpha: 0.14)
-              : const Color(0xFF111111),
+          color: done ? accent.withValues(alpha: 0.14) : TaqwaColors.panel,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(color: done ? accent : TaqwaColors.border),
         ),
@@ -423,12 +411,12 @@ class _HabitPrayerRow extends StatelessWidget {
                 shape: BoxShape.circle,
                 color: done ? accent : Colors.transparent,
                 border: Border.all(
-                  color: done ? accent : const Color(0xFF5A5A54),
+                  color: done ? accent : TaqwaColors.mutedStrong,
                   width: 1.4,
                 ),
               ),
               child: done
-                  ? const Icon(Icons.check, size: 15, color: Color(0xFF17120A))
+                  ? Icon(Icons.check, size: 15, color: TaqwaColors.onGold)
                   : null,
             ),
             const SizedBox(width: 10),
@@ -446,10 +434,7 @@ class _HabitPrayerRow extends StatelessWidget {
                   ),
                   Text(
                     done ? 'Erledigt' : 'Antippen zum Abhaken',
-                    style: const TextStyle(
-                      color: TaqwaColors.muted,
-                      fontSize: 8,
-                    ),
+                    style: TextStyle(color: TaqwaColors.muted, fontSize: 8),
                   ),
                 ],
               ),
@@ -501,7 +486,7 @@ class _PrayerTimeRow extends StatelessWidget {
     duration: const Duration(milliseconds: 200),
     padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 10),
     decoration: BoxDecoration(
-      color: highlighted ? const Color(0xFF2A2011) : Colors.transparent,
+      color: highlighted ? TaqwaColors.goldBorder : Colors.transparent,
       borderRadius: BorderRadius.circular(10),
       border: Border.all(
         color: highlighted ? TaqwaColors.gold : Colors.transparent,
@@ -530,7 +515,7 @@ class _PrayerTimeRow extends StatelessWidget {
               if (entry.hint != null)
                 Text(
                   entry.hint!,
-                  style: const TextStyle(color: TaqwaColors.muted, fontSize: 8),
+                  style: TextStyle(color: TaqwaColors.muted, fontSize: 8),
                 ),
             ],
           ),
@@ -539,11 +524,11 @@ class _PrayerTimeRow extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
             decoration: BoxDecoration(
-              color: const Color(0xFF3A2A11),
+              color: TaqwaColors.goldBorder,
               borderRadius: BorderRadius.circular(20),
               border: Border.all(color: TaqwaColors.gold),
             ),
-            child: const Text(
+            child: Text(
               'als Nächstes',
               style: TextStyle(
                 color: TaqwaColors.goldLight,
@@ -553,7 +538,7 @@ class _PrayerTimeRow extends StatelessWidget {
             ),
           ),
         if (done == true)
-          const Padding(
+          Padding(
             padding: EdgeInsets.only(left: 6),
             child: Icon(Icons.check_circle, size: 14, color: TaqwaColors.green),
           ),
@@ -611,12 +596,12 @@ class _NextPrayerBarState extends State<_NextPrayerBar> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
       decoration: BoxDecoration(
-        color: const Color(0xFF211A10),
+        color: TaqwaColors.chip,
         borderRadius: BorderRadius.circular(10),
       ),
       child: Row(
         children: [
-          const Icon(Icons.hourglass_bottom, color: TaqwaColors.gold, size: 15),
+          Icon(Icons.hourglass_bottom, color: TaqwaColors.gold, size: 15),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
@@ -628,7 +613,7 @@ class _NextPrayerBarState extends State<_NextPrayerBar> {
           ),
           Text(
             _countdown(remaining),
-            style: const TextStyle(
+            style: TextStyle(
               color: TaqwaColors.goldLight,
               fontWeight: FontWeight.w700,
               fontSize: 12,
@@ -685,7 +670,7 @@ class _QiblaScreenState extends State<QiblaScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Eyebrow('QIBLA-KOMPASS', color: TaqwaColors.gold),
+              Eyebrow('QIBLA-KOMPASS', color: TaqwaColors.gold),
               const SizedBox(height: 3),
               const Text(
                 'Qibla',
@@ -696,7 +681,7 @@ class _QiblaScreenState extends State<QiblaScreen> {
                 '${settings.locationName} · '
                 '${settings.latitude.toStringAsFixed(3)}, '
                 '${settings.longitude.toStringAsFixed(3)}',
-                style: const TextStyle(color: TaqwaColors.muted, fontSize: 9),
+                style: TextStyle(color: TaqwaColors.muted, fontSize: 9),
               ),
               const SizedBox(height: 12),
               _QiblaCompass(qibla: qibla),
@@ -742,16 +727,12 @@ class _QiblaScreenState extends State<QiblaScreen> {
                   padding: const EdgeInsets.only(bottom: 6),
                   child: Row(
                     children: [
-                      const Icon(
-                        Icons.circle,
-                        size: 4,
-                        color: TaqwaColors.gold,
-                      ),
+                      Icon(Icons.circle, size: 4, color: TaqwaColors.gold),
                       const SizedBox(width: 7),
                       Expanded(
                         child: Text(
                           line,
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: TaqwaColors.muted,
                             fontSize: 9,
                           ),
@@ -764,7 +745,7 @@ class _QiblaScreenState extends State<QiblaScreen> {
           ),
         ),
         const SizedBox(height: 9),
-        const Center(
+        Center(
           child: Text(
             'Ohne Sensor zeigt der Ring Norden, der Pfeil die Qibla.',
             textAlign: TextAlign.center,
@@ -881,7 +862,7 @@ class _QiblaCompassState extends State<_QiblaCompass> {
                   height: 48,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: const Color(0xFF1D1810),
+                    color: TaqwaColors.panel,
                     border: Border.all(
                       color: aligned ? TaqwaColors.green : TaqwaColors.gold,
                       width: 1.5,
@@ -890,7 +871,7 @@ class _QiblaCompassState extends State<_QiblaCompass> {
                   child: Center(
                     child: Text(
                       '${widget.qibla.round()}°',
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: TaqwaColors.goldLight,
                         fontWeight: FontWeight.w800,
                         fontSize: 12,
@@ -919,7 +900,7 @@ class _QiblaCompassState extends State<_QiblaCompass> {
           ),
         ),
         if (heading == null && _sensorMissing)
-          const Padding(
+          Padding(
             padding: EdgeInsets.only(top: 6),
             child: Center(
               child: Text(
@@ -958,7 +939,7 @@ class _QiblaStat extends StatelessWidget {
             Expanded(
               child: Text(
                 label,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 7,
                   color: TaqwaColors.muted,
                   fontWeight: FontWeight.w700,
@@ -971,16 +952,13 @@ class _QiblaStat extends StatelessWidget {
         const SizedBox(height: 6),
         Text(
           value,
-          style: const TextStyle(
+          style: TextStyle(
             fontSize: 15,
             fontWeight: FontWeight.w800,
             color: TaqwaColors.goldLight,
           ),
         ),
-        Text(
-          detail,
-          style: const TextStyle(fontSize: 8, color: TaqwaColors.muted),
-        ),
+        Text(detail, style: TextStyle(fontSize: 8, color: TaqwaColors.muted)),
       ],
     ),
   );
@@ -999,11 +977,7 @@ class _CompassDialPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final center = size.center(Offset.zero);
     final radius = size.width / 2;
-    canvas.drawCircle(
-      center,
-      radius - 1,
-      Paint()..color = const Color(0xFF151515),
-    );
+    canvas.drawCircle(center, radius - 1, Paint()..color = TaqwaColors.card);
     canvas.drawCircle(
       center,
       radius - 1,
@@ -1018,11 +992,11 @@ class _CompassDialPainter extends CustomPainter {
       Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = 0.7
-        ..color = const Color(0xFF2E2A22),
+        ..color = TaqwaColors.border,
     );
     final tick = Paint()
       ..strokeWidth = 1
-      ..color = const Color(0xFF57524A);
+      ..color = TaqwaColors.mutedStrong;
     final strong = Paint()
       ..strokeWidth = 1.8
       ..color = TaqwaColors.gold;
@@ -1093,7 +1067,7 @@ class _QiblaNeedlePainter extends CustomPainter {
       Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1
-        ..color = const Color(0xFF1A1509),
+        ..color = TaqwaColors.chip,
     );
   }
 

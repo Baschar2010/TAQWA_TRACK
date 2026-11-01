@@ -135,12 +135,12 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
     await showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        backgroundColor: const Color(0xFF1B1810),
+        backgroundColor: TaqwaColors.panel,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          side: const BorderSide(color: Color(0xFF6B4D20)),
+          side: BorderSide(color: TaqwaColors.goldBorder),
         ),
-        title: const Row(
+        title: Row(
           children: [
             Icon(Icons.favorite, color: TaqwaColors.gold, size: 20),
             SizedBox(width: 8),
@@ -152,7 +152,7 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
             ),
           ],
         ),
-        content: const Text(
+        content: Text(
           'Deine Nachricht wird direkt beim Entwickler landen. '
           'Barakallahu feek – deine Meinung macht TAQWA TRACK besser.',
           style: TextStyle(
@@ -187,7 +187,7 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
           children: [
-            const TaqwaCard(
+            TaqwaCard(
               goldBorder: true,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -306,12 +306,12 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
                 key: const ValueKey('feedback-send'),
                 onPressed: _sending ? null : _submit,
                 icon: _sending
-                    ? const SizedBox(
+                    ? SizedBox(
                         width: 14,
                         height: 14,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          color: Color(0xFF17120A),
+                          color: TaqwaColors.onGold,
                         ),
                       )
                     : const Icon(Icons.send_rounded, size: 16),
@@ -324,13 +324,13 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
                 ),
                 style: FilledButton.styleFrom(
                   backgroundColor: TaqwaColors.gold,
-                  foregroundColor: const Color(0xFF17120A),
+                  foregroundColor: TaqwaColors.onGold,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                 ),
               ),
             ),
             const SizedBox(height: 8),
-            const Text(
+            Text(
               'Beim Senden öffnet sich deine E-Mail-App mit einer fertigen '
               'Nachricht. Du kannst sie vor dem Absenden noch ändern.',
               textAlign: TextAlign.center,

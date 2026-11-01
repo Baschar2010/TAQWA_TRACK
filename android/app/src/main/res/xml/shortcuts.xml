@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="quran"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_quran_short"
+        android:shortcutLongLabel="@string/shortcut_quran_long">
+        <intent
+            android:action="com.taqwatrack.taqwa_track.SHORTCUT"
+            android:targetPackage="com.taqwatrack.taqwa_track"
+            android:targetClass="com.taqwatrack.taqwa_track.MainActivity">
+            <extra
+                android:name="shortcut"
+                android:value="quran" />
+        </intent>
+    </shortcut>
+    <shortcut
+        android:shortcutId="prayer"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_prayer_short"
+        android:shortcutLongLabel="@string/shortcut_prayer_long">
+        <intent
+            android:action="com.taqwatrack.taqwa_track.SHORTCUT"
+            android:targetPackage="com.taqwatrack.taqwa_track"
+            android:targetClass="com.taqwatrack.taqwa_track.MainActivity">
+            <extra
+                android:name="shortcut"
+                android:value="prayer" />
+        </intent>
+    </shortcut>
+    <shortcut
+        android:shortcutId="family"
+        android:enabled="true"
+        android:icon="@mipmap/ic_launcher"
+        android:shortcutShortLabel="@string/shortcut_family_short"
+        android:shortcutLongLabel="@string/shortcut_family_long">
+        <intent
+            android:action="com.taqwatrack.taqwa_track.SHORTCUT"
+            android:targetPackage="com.taqwatrack.taqwa_track"
+            android:targetClass="com.taqwatrack.taqwa_track.MainActivity">
+            <extra
+                android:name="shortcut"
+                android:value="family" />
+        </intent>
+    </shortcut>
+</shortcuts>

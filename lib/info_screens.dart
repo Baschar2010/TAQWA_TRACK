@@ -49,7 +49,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
           children: [
-            const TaqwaCard(
+            TaqwaCard(
               goldBorder: true,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -198,7 +198,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
               padding: EdgeInsets.zero,
               child: ListTile(
                 dense: true,
-                leading: const Icon(
+                leading: Icon(
                   Icons.mail_outline,
                   size: 18,
                   color: TaqwaColors.gold,
@@ -207,11 +207,11 @@ class PrivacyPolicyScreen extends StatelessWidget {
                   'Datenschutz-Kontakt',
                   style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
                 ),
-                subtitle: const Text(
+                subtitle: Text(
                   supportEmail,
                   style: TextStyle(fontSize: 9, color: TaqwaColors.muted),
                 ),
-                trailing: const Icon(
+                trailing: Icon(
                   Icons.open_in_new,
                   size: 14,
                   color: TaqwaColors.goldLight,
@@ -251,13 +251,13 @@ class _LegalSection extends StatelessWidget {
                 height: 22,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: const Color(0xFF231B0D),
+                  color: TaqwaColors.chip,
                   border: Border.all(color: TaqwaColors.gold),
                 ),
                 child: Center(
                   child: Text(
                     number,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: TaqwaColors.goldLight,
                       fontSize: 9,
                       fontWeight: FontWeight.w700,
@@ -280,7 +280,7 @@ class _LegalSection extends StatelessWidget {
           const SizedBox(height: 7),
           Text(
             body,
-            style: const TextStyle(
+            style: TextStyle(
               color: TaqwaColors.muted,
               fontSize: 10,
               height: 1.6,
@@ -385,7 +385,7 @@ class FaqScreen extends StatelessWidget {
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
           children: [
-            const TaqwaCard(
+            TaqwaCard(
               goldBorder: true,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -417,7 +417,7 @@ class FaqScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Row(
+                  Row(
                     children: [
                       Icon(
                         Icons.support_agent,
@@ -437,7 +437,7 @@ class FaqScreen extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 6),
-                  const Text(
+                  Text(
                     'Schreib uns direkt – Feedback, Fehler oder Wünsche '
                     'landen persönlich beim Entwickler.',
                     style: TextStyle(
@@ -461,7 +461,7 @@ class FaqScreen extends StatelessWidget {
                       ),
                       style: FilledButton.styleFrom(
                         backgroundColor: TaqwaColors.gold,
-                        foregroundColor: const Color(0xFF17120A),
+                        foregroundColor: TaqwaColors.onGold,
                         padding: const EdgeInsets.symmetric(vertical: 12),
                       ),
                     ),
@@ -485,7 +485,7 @@ class FaqScreen extends StatelessWidget {
                       ),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: TaqwaColors.goldLight,
-                        side: const BorderSide(color: TaqwaColors.border),
+                        side: BorderSide(color: TaqwaColors.border),
                         padding: const EdgeInsets.symmetric(vertical: 12),
                       ),
                     ),
@@ -497,7 +497,7 @@ class FaqScreen extends StatelessWidget {
             Center(
               child: Text(
                 'TAQWA TRACK · Version $appVersion · Offline-First',
-                style: const TextStyle(color: TaqwaColors.muted, fontSize: 8),
+                style: TextStyle(color: TaqwaColors.muted, fontSize: 8),
               ),
             ),
           ],
@@ -537,7 +537,7 @@ class _FaqTile extends StatelessWidget {
                 alignment: Alignment.centerLeft,
                 child: Text(
                   faq.answer,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: TaqwaColors.muted,
                     fontSize: 10,
                     height: 1.6,

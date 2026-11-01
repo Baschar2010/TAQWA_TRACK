@@ -47,14 +47,14 @@ class _TasbihScreenState extends State<TasbihScreen> {
           child: ListView(
             padding: const EdgeInsets.fromLTRB(18, 16, 18, 30),
             children: [
-              const Eyebrow('DHIKR-ZÄHLER', color: TaqwaColors.gold),
+              Eyebrow('DHIKR-ZÄHLER', color: TaqwaColors.gold),
               const SizedBox(height: 4),
               const Text(
                 'Tasbih',
                 style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
               ),
               const SizedBox(height: 4),
-              const Text(
+              Text(
                 'Zähle deine Dhikr mit Vibration – ohne Bildschirm anschauen zu müssen.',
                 style: TextStyle(
                   color: TaqwaColors.muted,
@@ -77,8 +77,8 @@ class _TasbihScreenState extends State<TasbihScreen> {
                         ),
                         decoration: BoxDecoration(
                           color: _phrase == i
-                              ? const Color(0xFF33250F)
-                              : const Color(0xFF171614),
+                              ? TaqwaColors.navIndicator
+                              : TaqwaColors.panel,
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
                             color: _phrase == i
@@ -114,8 +114,8 @@ class _TasbihScreenState extends State<TasbihScreen> {
                   height: 210,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    gradient: const RadialGradient(
-                      colors: [Color(0xFF2B2113), Color(0xFF141210)],
+                    gradient: RadialGradient(
+                      colors: [TaqwaColors.goldBorder, TaqwaColors.panel],
                     ),
                     border: Border.all(color: TaqwaColors.gold, width: 2),
                     boxShadow: const [
@@ -131,7 +131,7 @@ class _TasbihScreenState extends State<TasbihScreen> {
                     children: [
                       Text(
                         _phrases[_phrase],
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: TaqwaColors.goldLight,
                           fontSize: 13,
                           fontWeight: FontWeight.w700,
@@ -141,7 +141,7 @@ class _TasbihScreenState extends State<TasbihScreen> {
                       const SizedBox(height: 8),
                       Text(
                         '$count',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 64,
                           height: 1,
                           fontWeight: FontWeight.w800,
@@ -151,7 +151,7 @@ class _TasbihScreenState extends State<TasbihScreen> {
                       const SizedBox(height: 6),
                       Text(
                         'von $target',
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: TaqwaColors.muted,
                           fontSize: 10,
                         ),
@@ -178,7 +178,7 @@ class _TasbihScreenState extends State<TasbihScreen> {
                       : count >= target
                       ? 'Ziel erreicht – möge Allah es annehmen.'
                       : 'Noch ${target - count} bis zum Ziel.',
-                  style: const TextStyle(color: TaqwaColors.muted, fontSize: 9),
+                  style: TextStyle(color: TaqwaColors.muted, fontSize: 9),
                 ),
               ),
               const SizedBox(height: 24),
@@ -201,8 +201,8 @@ class _TasbihScreenState extends State<TasbihScreen> {
                                 ),
                                 decoration: BoxDecoration(
                                   color: target == value
-                                      ? const Color(0xFF33250F)
-                                      : const Color(0xFF171614),
+                                      ? TaqwaColors.navIndicator
+                                      : TaqwaColors.panel,
                                   borderRadius: BorderRadius.circular(8),
                                   border: Border.all(
                                     color: target == value
@@ -229,7 +229,7 @@ class _TasbihScreenState extends State<TasbihScreen> {
                       ],
                     ),
                     const SizedBox(height: 8),
-                    const Text(
+                    Text(
                       'Der Zähler springt nach Erreichen des Ziels automatisch zurück auf 0.',
                       style: TextStyle(
                         color: TaqwaColors.muted,

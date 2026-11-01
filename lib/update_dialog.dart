@@ -66,16 +66,16 @@ class UpdateDialog extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.fromLTRB(18, 18, 18, 14),
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
+          gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [Color(0xFF1E1A12), Color(0xFF12100B)],
+            colors: [TaqwaColors.panel, TaqwaColors.panelDeep],
           ),
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: const Color(0xFF6B4D20)),
-          boxShadow: const [
+          border: Border.all(color: TaqwaColors.goldBorder),
+          boxShadow: [
             BoxShadow(
-              color: Color(0x99000000),
+              color: TaqwaColors.shadow,
               blurRadius: 28,
               offset: Offset(0, 12),
             ),
@@ -93,7 +93,7 @@ class UpdateDialog extends StatelessWidget {
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     border: Border.all(color: TaqwaColors.gold),
-                    color: const Color(0xFF1B160D),
+                    color: TaqwaColors.chip,
                   ),
                   child: ClipOval(
                     child: Image.asset(
@@ -101,7 +101,7 @@ class UpdateDialog extends StatelessWidget {
                       width: 44,
                       height: 44,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, _, _) => const Icon(
+                      errorBuilder: (_, _, _) => Icon(
                         Icons.system_update,
                         color: TaqwaColors.goldLight,
                         size: 20,
@@ -114,11 +114,11 @@ class UpdateDialog extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Eyebrow('NEUES UPDATE', color: TaqwaColors.gold),
+                      Eyebrow('NEUES UPDATE', color: TaqwaColors.gold),
                       const SizedBox(height: 2),
                       Text(
                         'Version ${release.version} ist da',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w800,
                           color: TaqwaColors.text,
@@ -133,7 +133,7 @@ class UpdateDialog extends StatelessWidget {
             Text(
               'Du nutzt Version $currentVersion. Aktualisiere jetzt, um alle '
               'Verbesserungen und Fehlerbehebungen zu erhalten.',
-              style: const TextStyle(
+              style: TextStyle(
                 color: TaqwaColors.muted,
                 fontSize: 11,
                 height: 1.55,
@@ -145,14 +145,14 @@ class UpdateDialog extends StatelessWidget {
                 constraints: const BoxConstraints(maxHeight: 132),
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF15130D),
+                  color: TaqwaColors.panelDeep,
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(color: TaqwaColors.border),
                 ),
                 child: SingleChildScrollView(
                   child: Text(
                     notes,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: TaqwaColors.muted,
                       fontSize: 9.5,
                       height: 1.55,
@@ -162,7 +162,7 @@ class UpdateDialog extends StatelessWidget {
               ),
             ],
             const SizedBox(height: 8),
-            const Row(
+            Row(
               children: [
                 Icon(Icons.info_outline, size: 12, color: TaqwaColors.muted),
                 SizedBox(width: 5),
@@ -208,7 +208,7 @@ class UpdateDialog extends StatelessWidget {
                     ),
                     style: FilledButton.styleFrom(
                       backgroundColor: TaqwaColors.gold,
-                      foregroundColor: const Color(0xFF17120A),
+                      foregroundColor: TaqwaColors.onGold,
                       padding: const EdgeInsets.symmetric(vertical: 12),
                     ),
                   ),

@@ -212,6 +212,7 @@ class _FakeRepository extends TaqwaRepository {
     bool? hanafi,
     String? language,
     bool? oled,
+    String? themeMode,
     bool? adhanEnabled,
     int? adhanMinutesBefore,
     int? tasbihCount,
@@ -230,6 +231,7 @@ class _FakeRepository extends TaqwaRepository {
       hanafi: hanafi,
       language: language,
       oled: oled,
+      themeMode: themeMode,
       adhanEnabled: adhanEnabled,
       adhanMinutesBefore: adhanMinutesBefore,
       tasbihCount: tasbihCount,
@@ -601,6 +603,53 @@ void main() {
     await controller.setOled(false);
     await controller.setLanguage('de');
     await tester.pump();
+  });
+
+  testWidgets('Heller Modus folgt System oder fester Wahl', (tester) async {
+    await tester.pumpWidget(TaqwaTrackApp(controller: controller));
+    await settleApp(tester);
+
+    await controller.setThemeMode('light');
+    await tester.pump();
+    var app = tester.widget<MaterialApp>(find.byType(MaterialApp));
+    expect(app.theme!.brightness, Brightness.light);
+    expect(TaqwaColors.isLight, isTrue);
+    expect(TaqwaColors.text.computeLuminance(), lessThan(0.2));
+
+    await controller.setThemeMode('dark');
+    await tester.pump();
+    app = tester.widget<MaterialApp>(find.byType(MaterialApp));
+    expect(app.theme!.brightness, Brightness.dark);
+    expect(TaqwaColors.isLight, isFalse);
+
+    await controller.setThemeMode('system');
+    await tester.pump();
+    expect(controller.settings!.themeMode, 'system');
+  });
+
+  testWidgets('Einstellungen bieten System, Hell und Dunkel', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: taqwaTheme(),
+        home: SettingsScreen(controller: controller),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('theme-mode-system')), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('theme-mode-light')));
+    await tester.pumpAndSettle();
+    expect(controller.settings!.themeMode, 'light');
+    expect(find.text('OLED-Schwarzmodus'), findsNothing);
+
+    await tester.tap(find.byKey(const ValueKey('theme-mode-dark')));
+    await tester.pumpAndSettle();
+    expect(controller.settings!.themeMode, 'dark');
+    expect(find.text('OLED-Schwarzmodus'), findsOneWidget);
+
+    await controller.setThemeMode('system');
+    await tester.pumpAndSettle();
   });
 
   test('Ramadan-Countdown zeigt auf einen zukünftigen 1. Ramadan', () {

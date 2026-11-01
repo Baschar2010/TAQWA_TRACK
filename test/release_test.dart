@@ -1,7 +1,11 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:taqwa_track/app_info.dart';
+import 'package:taqwa_track/app_shortcuts.dart';
 import 'package:taqwa_track/feedback_screen.dart';
+import 'package:taqwa_track/main.dart';
+import 'package:taqwa_track/theme.dart';
 import 'package:taqwa_track/update_service.dart';
+import 'package:flutter/material.dart';
 
 void main() {
   group('Versionsvergleich', () {
@@ -143,6 +147,49 @@ void main() {
         Uri.decodeQueryComponent(uri.query),
         contains('Sehr gut & gerne mehr'),
       );
+    });
+  });
+
+  group('Darstellung', () {
+    test('ThemeMode wird aus den Einstellungen gelesen', () {
+      expect(themeModeFrom('light'), ThemeMode.light);
+      expect(themeModeFrom('dark'), ThemeMode.dark);
+      expect(themeModeFrom('system'), ThemeMode.system);
+      expect(themeModeFrom(null), ThemeMode.system);
+      expect(themeModeFrom('unbekannt'), ThemeMode.system);
+    });
+
+    test('helles Theme nutzt weiße Flächen und dunkle Schrift', () {
+      final light = taqwaTheme(brightness: Brightness.light);
+      expect(light.brightness, Brightness.light);
+      expect(
+        light.scaffoldBackgroundColor.computeLuminance(),
+        greaterThan(0.8),
+      );
+      expect(TaqwaColors.isLight, isTrue);
+      expect(TaqwaColors.text.computeLuminance(), lessThan(0.2));
+      expect(TaqwaColors.gold.computeLuminance(), lessThan(0.5));
+
+      final dark = taqwaTheme(brightness: Brightness.dark);
+      expect(dark.scaffoldBackgroundColor.computeLuminance(), lessThan(0.1));
+      expect(TaqwaColors.isLight, isFalse);
+      expect(TaqwaColors.text.computeLuminance(), greaterThan(0.7));
+    });
+
+    test('OLED bleibt im hellen Modus ohne Wirkung', () {
+      final theme = taqwaTheme(oled: true, brightness: Brightness.light);
+      expect(theme.scaffoldBackgroundColor, lightPalette.background);
+    });
+  });
+
+  group('Schnellstart', () {
+    test('erkennt Quran, Gebet und Familie', () {
+      expect(shortcutFromId('quran'), AppShortcut.quran);
+      expect(shortcutFromId('prayer'), AppShortcut.prayer);
+      expect(shortcutFromId('family'), AppShortcut.family);
+      expect(shortcutFromId('qibla'), isNull);
+      expect(shortcutFromId(null), isNull);
+      expect(shortcutFromId(''), isNull);
     });
   });
 }

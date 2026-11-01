@@ -114,10 +114,10 @@ class HadithOfTheDayCard extends StatelessWidget {
                   height: 26,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: const Color(0xFF211A0D),
+                    color: TaqwaColors.chip,
                     border: Border.all(color: TaqwaColors.gold),
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.auto_stories_outlined,
                     size: 13,
                     color: TaqwaColors.goldLight,
@@ -132,7 +132,7 @@ class HadithOfTheDayCard extends StatelessWidget {
                     minimumSize: const Size(0, 26),
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
-                  child: const Text(
+                  child: Text(
                     'Alle ›',
                     style: TextStyle(
                       color: TaqwaColors.goldLight,
@@ -144,7 +144,7 @@ class HadithOfTheDayCard extends StatelessWidget {
             ),
             const SizedBox(height: 9),
             if (hadith == null)
-              const Padding(
+              Padding(
                 padding: EdgeInsets.symmetric(vertical: 12),
                 child: Center(
                   child: SizedBox(
@@ -160,7 +160,7 @@ class HadithOfTheDayCard extends StatelessWidget {
             else ...[
               Text(
                 '„${hadith.text}“',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 11,
                   height: 1.45,
                   color: TaqwaColors.text,
@@ -169,7 +169,7 @@ class HadithOfTheDayCard extends StatelessWidget {
               const SizedBox(height: 7),
               Row(
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.bookmark_border,
                     size: 11,
                     color: TaqwaColors.gold,
@@ -178,10 +178,7 @@ class HadithOfTheDayCard extends StatelessWidget {
                   Expanded(
                     child: Text(
                       hadith.source,
-                      style: const TextStyle(
-                        color: TaqwaColors.muted,
-                        fontSize: 8,
-                      ),
+                      style: TextStyle(color: TaqwaColors.muted, fontSize: 8),
                     ),
                   ),
                 ],
@@ -212,11 +209,7 @@ class PrayerHadithCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                const Icon(
-                  Icons.mosque_outlined,
-                  size: 14,
-                  color: TaqwaColors.gold,
-                ),
+                Icon(Icons.mosque_outlined, size: 14, color: TaqwaColors.gold),
                 const SizedBox(width: 6),
                 const Expanded(child: Eyebrow('HADITH ZUM GEBET')),
                 if (hadith != null)
@@ -232,7 +225,7 @@ class PrayerHadithCard extends StatelessWidget {
                       minimumSize: const Size(0, 24),
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),
-                    child: const Text(
+                    child: Text(
                       'Gebets-Hadithe ›',
                       style: TextStyle(
                         color: TaqwaColors.goldLight,
@@ -244,7 +237,7 @@ class PrayerHadithCard extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             if (hadith == null)
-              const SizedBox(
+              SizedBox(
                 height: 28,
                 child: Center(
                   child: SizedBox(
@@ -265,7 +258,7 @@ class PrayerHadithCard extends StatelessWidget {
               const SizedBox(height: 6),
               Text(
                 hadith.source,
-                style: const TextStyle(color: TaqwaColors.muted, fontSize: 8),
+                style: TextStyle(color: TaqwaColors.muted, fontSize: 8),
               ),
             ],
           ],
@@ -297,7 +290,7 @@ class _HadithListScreenState extends State<HadithListScreen> {
           future: _items,
           builder: (context, snapshot) {
             if (snapshot.connectionState != ConnectionState.done) {
-              return const Center(
+              return Center(
                 child: CircularProgressIndicator(color: TaqwaColors.gold),
               );
             }
@@ -316,7 +309,7 @@ class _HadithListScreenState extends State<HadithListScreen> {
                     style: const TextStyle(fontSize: 12),
                     decoration: InputDecoration(
                       hintText: 'Hadithe durchsuchen (z. B. Gebet, Geduld) …',
-                      prefixIcon: const Icon(
+                      prefixIcon: Icon(
                         Icons.search,
                         size: 18,
                         color: TaqwaColors.gold,
@@ -349,17 +342,14 @@ class _HadithListScreenState extends State<HadithListScreen> {
                       const Spacer(),
                       Text(
                         '${visible.length} Treffer',
-                        style: const TextStyle(
-                          color: TaqwaColors.muted,
-                          fontSize: 8,
-                        ),
+                        style: TextStyle(color: TaqwaColors.muted, fontSize: 8),
                       ),
                     ],
                   ),
                 ),
                 Expanded(
                   child: visible.isEmpty
-                      ? const Center(
+                      ? Center(
                           child: Text(
                             'Keine Hadithe gefunden.',
                             style: TextStyle(
@@ -404,7 +394,7 @@ class _FilterChip extends StatelessWidget {
     child: Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: selected ? const Color(0xFF33250F) : const Color(0xFF171614),
+        color: selected ? TaqwaColors.navIndicator : TaqwaColors.panel,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: selected ? TaqwaColors.gold : TaqwaColors.border,
@@ -456,11 +446,11 @@ class _HadithTile extends StatelessWidget {
                       vertical: 2,
                     ),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF3A2A11),
+                      color: TaqwaColors.goldBorder,
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(color: TaqwaColors.gold),
                     ),
-                    child: const Text(
+                    child: Text(
                       'Heute',
                       style: TextStyle(
                         color: TaqwaColors.goldLight,
@@ -479,22 +469,15 @@ class _HadithTile extends StatelessWidget {
             const SizedBox(height: 8),
             Row(
               children: [
-                const Icon(
-                  Icons.bookmark_border,
-                  size: 10,
-                  color: TaqwaColors.muted,
-                ),
+                Icon(Icons.bookmark_border, size: 10, color: TaqwaColors.muted),
                 const SizedBox(width: 4),
                 Expanded(
                   child: Text(
                     hadith.source,
-                    style: const TextStyle(
-                      color: TaqwaColors.muted,
-                      fontSize: 8,
-                    ),
+                    style: TextStyle(color: TaqwaColors.muted, fontSize: 8),
                   ),
                 ),
-                const Icon(
+                Icon(
                   Icons.chevron_right,
                   size: 14,
                   color: TaqwaColors.goldLight,
@@ -530,11 +513,11 @@ class HadithDetailScreen extends StatelessWidget {
                     style: const TextStyle(fontSize: 13, height: 1.6),
                   ),
                   const SizedBox(height: 12),
-                  const Divider(height: 1, color: Color(0xFF2A2721)),
+                  Divider(height: 1, color: TaqwaColors.border),
                   const SizedBox(height: 10),
                   Row(
                     children: [
-                      const Icon(
+                      Icon(
                         Icons.menu_book_outlined,
                         size: 13,
                         color: TaqwaColors.gold,
@@ -543,7 +526,7 @@ class HadithDetailScreen extends StatelessWidget {
                       Expanded(
                         child: Text(
                           hadith.source,
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: TaqwaColors.goldLight,
                             fontSize: 9,
                           ),
@@ -564,13 +547,13 @@ class HadithDetailScreen extends StatelessWidget {
                               vertical: 3,
                             ),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF191712),
+                              color: TaqwaColors.panel,
                               borderRadius: BorderRadius.circular(20),
                               border: Border.all(color: TaqwaColors.border),
                             ),
                             child: Text(
                               '#$tag',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 8,
                                 color: TaqwaColors.muted,
                               ),
@@ -604,7 +587,7 @@ class HadithDetailScreen extends StatelessWidget {
               ),
               style: OutlinedButton.styleFrom(
                 foregroundColor: TaqwaColors.goldLight,
-                side: const BorderSide(color: TaqwaColors.border),
+                side: BorderSide(color: TaqwaColors.border),
                 padding: const EdgeInsets.symmetric(vertical: 11),
               ),
             ),

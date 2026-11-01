@@ -65,6 +65,7 @@ class AppSettings {
     this.onboarded = false,
     this.language = 'de',
     this.oled = false,
+    this.themeMode = 'system',
     this.adhanEnabled = false,
     this.adhanMinutesBefore = 0,
     this.tasbihCount = 0,
@@ -91,6 +92,9 @@ class AppSettings {
 
   /// Echtes Schwarz (OLED) statt dunkelgrauem Hintergrund.
   final bool oled;
+
+  /// Gewünschtes Erscheinungsbild: `system`, `light` oder `dark`.
+  final String themeMode;
 
   /// Lokale Erinnerungen zu den Gebetszeiten.
   final bool adhanEnabled;
@@ -123,6 +127,7 @@ class AppSettings {
     bool? onboarded,
     String? language,
     bool? oled,
+    String? themeMode,
     bool? adhanEnabled,
     int? adhanMinutesBefore,
     int? tasbihCount,
@@ -145,6 +150,7 @@ class AppSettings {
     onboarded: onboarded ?? this.onboarded,
     language: language ?? this.language,
     oled: oled ?? this.oled,
+    themeMode: themeMode ?? this.themeMode,
     adhanEnabled: adhanEnabled ?? this.adhanEnabled,
     adhanMinutesBefore: adhanMinutesBefore ?? this.adhanMinutesBefore,
     tasbihCount: tasbihCount ?? this.tasbihCount,

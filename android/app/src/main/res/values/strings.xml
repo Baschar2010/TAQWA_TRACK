@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="shortcut_quran_short">Quran</string>
+    <string name="shortcut_quran_long">Quran weiterlesen</string>
+    <string name="shortcut_prayer_short">Gebet</string>
+    <string name="shortcut_prayer_long">Aktuelle Gebetszeiten</string>
+    <string name="shortcut_family_short">Familie</string>
+    <string name="shortcut_family_long">Familie &amp; Habits</string>
+</resources>

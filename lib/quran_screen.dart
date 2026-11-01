@@ -172,7 +172,7 @@ class _QuranScreenState extends State<QuranScreen> {
           future: _surahs,
           builder: (context, snapshot) {
             if (snapshot.connectionState != ConnectionState.done) {
-              return const Center(
+              return Center(
                 child: CircularProgressIndicator(color: TaqwaColors.gold),
               );
             }
@@ -198,7 +198,7 @@ class _QuranScreenState extends State<QuranScreen> {
                   child: TextField(
                     onChanged: (value) => setState(() => _query = value),
                     style: const TextStyle(fontSize: 12),
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       hintText: 'Sure suchen …',
                       prefixIcon: Icon(
                         Icons.search,
@@ -261,7 +261,7 @@ class _ContinueReadingCard extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           child: Row(
             children: [
-              const Icon(
+              Icon(
                 Icons.play_circle_outline,
                 color: TaqwaColors.gold,
                 size: 22,
@@ -271,7 +271,7 @@ class _ContinueReadingCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Eyebrow('WEITERLESEN', color: TaqwaColors.gold),
+                    Eyebrow('WEITERLESEN', color: TaqwaColors.gold),
                     Text(
                       '${surah.latin} · Ayah ${progress.$2}',
                       style: const TextStyle(
@@ -282,11 +282,7 @@ class _ContinueReadingCard extends StatelessWidget {
                   ],
                 ),
               ),
-              const Icon(
-                Icons.chevron_right,
-                size: 18,
-                color: TaqwaColors.goldLight,
-              ),
+              Icon(Icons.chevron_right, size: 18, color: TaqwaColors.goldLight),
             ],
           ),
         ),
@@ -319,13 +315,13 @@ class _SurahTile extends StatelessWidget {
               height: 30,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: const Color(0xFF211A0D),
+                color: TaqwaColors.chip,
                 border: Border.all(color: TaqwaColors.border),
               ),
               child: Center(
                 child: Text(
                   '${surah.number}',
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: TaqwaColors.goldLight,
                     fontSize: 10,
                     fontWeight: FontWeight.w700,
@@ -348,10 +344,7 @@ class _SurahTile extends StatelessWidget {
                   Text(
                     '${surah.translation} · ${surah.verses} Verse'
                     '${quranAudioSurahs.contains(surah.number) ? ' · Audio' : ''}',
-                    style: const TextStyle(
-                      color: TaqwaColors.muted,
-                      fontSize: 8,
-                    ),
+                    style: TextStyle(color: TaqwaColors.muted, fontSize: 8),
                   ),
                 ],
               ),
@@ -359,10 +352,7 @@ class _SurahTile extends StatelessWidget {
             Text(
               surah.name,
               textDirection: TextDirection.rtl,
-              style: const TextStyle(
-                color: TaqwaColors.goldLight,
-                fontSize: 15,
-              ),
+              style: TextStyle(color: TaqwaColors.goldLight, fontSize: 15),
             ),
             const SizedBox(width: 4),
           ],
@@ -521,7 +511,7 @@ class _SurahScreenState extends State<SurahScreen> {
           future: _verses,
           builder: (context, snapshot) {
             if (snapshot.connectionState != ConnectionState.done) {
-              return const Center(
+              return Center(
                 child: CircularProgressIndicator(color: TaqwaColors.gold),
               );
             }
@@ -532,13 +522,13 @@ class _SurahScreenState extends State<SurahScreen> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(
+                      Icon(
                         Icons.menu_book_outlined,
                         color: TaqwaColors.muted,
                         size: 34,
                       ),
                       const SizedBox(height: 10),
-                      const Text(
+                      Text(
                         'Diese Sure konnte nicht geladen werden.',
                         textAlign: TextAlign.center,
                         style: TextStyle(
@@ -601,7 +591,7 @@ class _SurahScreenState extends State<SurahScreen> {
           Text(
             widget.surah.name,
             textDirection: TextDirection.rtl,
-            style: const TextStyle(
+            style: TextStyle(
               color: TaqwaColors.goldLight,
               fontSize: 22,
               fontWeight: FontWeight.w700,
@@ -615,10 +605,10 @@ class _SurahScreenState extends State<SurahScreen> {
           Text(
             '${widget.surah.verses} Verse · '
             '${widget.surah.revelation == 'Meccan' ? 'Mekkanisch' : 'Medinensisch'}',
-            style: const TextStyle(color: TaqwaColors.muted, fontSize: 8),
+            style: TextStyle(color: TaqwaColors.muted, fontSize: 8),
           ),
           if (_hasAudio)
-            const Padding(
+            Padding(
               padding: EdgeInsets.only(top: 6),
               child: Text(
                 'Rezitation offline verfügbar (Mishary Alafasy)',
@@ -680,7 +670,7 @@ class _VerseTile extends StatelessWidget {
                   verse.arabic,
                   textDirection: TextDirection.rtl,
                   textAlign: TextAlign.right,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 20,
                     height: 1.9,
                     color: TaqwaColors.text,
@@ -696,13 +686,13 @@ class _VerseTile extends StatelessWidget {
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF221B0E),
+                        color: TaqwaColors.chip,
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(color: TaqwaColors.border),
                       ),
                       child: Text(
                         '${verse.number}',
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: TaqwaColors.gold,
                           fontSize: 8,
                           fontWeight: FontWeight.w700,
@@ -713,7 +703,7 @@ class _VerseTile extends StatelessWidget {
                     Expanded(
                       child: Text(
                         verse.german,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: TaqwaColors.muted,
                           fontSize: 10,
                           height: 1.5,
@@ -791,12 +781,12 @@ class _QuranBookmarksScreenState extends State<QuranBookmarksScreen> {
             final surahs = snapshot.data ?? const <SurahInfo>[];
             final marks = widget.controller.bookmarks;
             if (snapshot.connectionState != ConnectionState.done) {
-              return const Center(
+              return Center(
                 child: CircularProgressIndicator(color: TaqwaColors.gold),
               );
             }
             if (marks.isEmpty) {
-              return const Center(
+              return Center(
                 child: Padding(
                   padding: EdgeInsets.all(24),
                   child: Text(
@@ -827,7 +817,7 @@ class _QuranBookmarksScreenState extends State<QuranBookmarksScreen> {
                           : '${surah.latin} · Ayah ${mark.$2}',
                       style: const TextStyle(fontSize: 11),
                     ),
-                    subtitle: const Text(
+                    subtitle: Text(
                       'Antippen zum Weiterlesen',
                       style: TextStyle(fontSize: 8, color: TaqwaColors.muted),
                     ),
@@ -839,7 +829,7 @@ class _QuranBookmarksScreenState extends State<QuranBookmarksScreen> {
                         );
                         setState(() {});
                       },
-                      icon: const Icon(
+                      icon: Icon(
                         Icons.delete_outline,
                         size: 16,
                         color: TaqwaColors.muted,

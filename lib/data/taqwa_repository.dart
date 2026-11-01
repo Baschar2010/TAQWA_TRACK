@@ -80,7 +80,7 @@ class TaqwaRepository {
     _db = await _factory.openDatabase(
       path,
       options: OpenDatabaseOptions(
-        version: 5,
+        version: 6,
         onCreate: _createSchema,
         onUpgrade: _upgradeSchema,
       ),
@@ -104,6 +104,7 @@ class TaqwaRepository {
       onboarded INTEGER NOT NULL DEFAULT 0,
       language TEXT NOT NULL DEFAULT 'de',
       oled INTEGER NOT NULL DEFAULT 0,
+      theme_mode TEXT NOT NULL DEFAULT 'system',
       adhan_enabled INTEGER NOT NULL DEFAULT 0,
       adhan_minutes_before INTEGER NOT NULL DEFAULT 0,
       tasbih_count INTEGER NOT NULL DEFAULT 0,
@@ -279,6 +280,11 @@ class TaqwaRepository {
     if (oldVersion < 5) {
       await db.execute('ALTER TABLE partners ADD COLUMN alias TEXT');
     }
+    if (oldVersion < 6) {
+      await db.execute(
+        "ALTER TABLE settings ADD COLUMN theme_mode TEXT NOT NULL DEFAULT 'system'",
+      );
+    }
   }
 
   Future<AppSettings> loadSettings() async {
@@ -298,6 +304,7 @@ class TaqwaRepository {
       onboarded: row['onboarded'] == 1,
       language: (row['language'] as String?) ?? 'de',
       oled: row['oled'] == 1,
+      themeMode: (row['theme_mode'] as String?) ?? 'system',
       adhanEnabled: row['adhan_enabled'] == 1,
       adhanMinutesBefore: (row['adhan_minutes_before'] as int?) ?? 0,
       tasbihCount: (row['tasbih_count'] as int?) ?? 0,
@@ -317,6 +324,7 @@ class TaqwaRepository {
     bool? hanafi,
     String? language,
     bool? oled,
+    String? themeMode,
     bool? adhanEnabled,
     int? adhanMinutesBefore,
     int? tasbihCount,
@@ -339,6 +347,7 @@ class TaqwaRepository {
     }
     if (language != null) values['language'] = language;
     if (oled != null) values['oled'] = oled ? 1 : 0;
+    if (themeMode != null) values['theme_mode'] = themeMode;
     if (adhanEnabled != null) {
       values['adhan_enabled'] = adhanEnabled ? 1 : 0;
     }

@@ -1,6 +1,7 @@
 package com.taqwatrack.taqwa_track
 
 import android.content.Context
+import android.content.Intent
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
@@ -8,6 +9,7 @@ import android.hardware.SensorManager
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.EventChannel
+import io.flutter.plugin.common.MethodChannel
 
 /**
  * Liefert die aktuelle Blickrichtung des Geräts (0–360°, 0 = Norden)
@@ -16,6 +18,9 @@ import io.flutter.plugin.common.EventChannel
 class MainActivity : FlutterActivity(), EventChannel.StreamHandler, SensorEventListener {
 
     private val channelName = "taqwa_track/compass"
+    private val shortcutChannelName = "taqwa_track/shortcuts"
+    private var shortcutChannel: MethodChannel? = null
+    private var pendingShortcut: String? = null
     private var sensorManager: SensorManager? = null
     private var rotationSensor: Sensor? = null
     private var fallbackSensors: List<Sensor> = emptyList()
@@ -30,6 +35,21 @@ class MainActivity : FlutterActivity(), EventChannel.StreamHandler, SensorEventL
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        pendingShortcut = intent?.getStringExtra(SHORTCUT_EXTRA)
+        shortcutChannel = MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            shortcutChannelName
+        ).also { channel ->
+            channel.setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "getInitialShortcut" -> {
+                        result.success(pendingShortcut)
+                        pendingShortcut = null
+                    }
+                    else -> result.notImplemented()
+                }
+            }
+        }
         val manager = getSystemService(Context.SENSOR_SERVICE) as? SensorManager
         sensorManager = manager
         rotationSensor = manager?.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR)
@@ -85,6 +105,21 @@ class MainActivity : FlutterActivity(), EventChannel.StreamHandler, SensorEventL
     }
 
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) = Unit
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        val shortcut = intent.getStringExtra(SHORTCUT_EXTRA) ?: return
+        if (shortcutChannel != null) {
+            shortcutChannel?.invokeMethod("shortcut", shortcut)
+        } else {
+            pendingShortcut = shortcut
+        }
+    }
+
+    private companion object {
+        const val SHORTCUT_EXTRA = "shortcut"
+    }
 
     override fun onPause() {
         sensorManager?.unregisterListener(this)

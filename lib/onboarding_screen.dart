@@ -75,10 +75,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           height: 78,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
-                            gradient: const LinearGradient(
+                            gradient: LinearGradient(
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
-                              colors: [Color(0xFF3A2A11), Color(0xFF17130C)],
+                              colors: [
+                                TaqwaColors.goldBorder,
+                                TaqwaColors.panelDeep,
+                              ],
                             ),
                             border: Border.all(
                               color: TaqwaColors.gold,
@@ -92,7 +95,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                               ),
                             ],
                           ),
-                          child: const Icon(
+                          child: Icon(
                             Icons.mosque,
                             color: TaqwaColors.goldLight,
                             size: 38,
@@ -100,7 +103,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         ),
                       ),
                       const SizedBox(height: 18),
-                      const Center(
+                      Center(
                         child: Text(
                           'TAQWA TRACK',
                           style: TextStyle(
@@ -125,7 +128,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       Text(
                         text.tagline,
                         textAlign: TextAlign.center,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: TaqwaColors.muted,
                           fontSize: 11,
                           height: 1.5,
@@ -162,7 +165,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         onSubmitted: (_) => _finish(),
                         decoration: InputDecoration(
                           hintText: text.nameHint,
-                          prefixIcon: const Icon(
+                          prefixIcon: Icon(
                             Icons.person_outline,
                             size: 18,
                             color: TaqwaColors.gold,
@@ -183,13 +186,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                             vertical: 12,
                           ),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF141311),
+                            color: TaqwaColors.panel,
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(color: TaqwaColors.border),
                           ),
                           child: Row(
                             children: [
-                              const Icon(
+                              Icon(
                                 Icons.language,
                                 size: 18,
                                 color: TaqwaColors.gold,
@@ -206,13 +209,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                               ),
                               Text(
                                 language.englishName,
-                                style: const TextStyle(
+                                style: TextStyle(
                                   color: TaqwaColors.muted,
                                   fontSize: 9,
                                 ),
                               ),
                               const SizedBox(width: 6),
-                              const Icon(
+                              Icon(
                                 Icons.expand_more,
                                 size: 18,
                                 color: TaqwaColors.muted,
@@ -229,16 +232,16 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           onPressed: _saving ? null : _finish,
                           style: FilledButton.styleFrom(
                             backgroundColor: TaqwaColors.gold,
-                            foregroundColor: const Color(0xFF17120A),
+                            foregroundColor: TaqwaColors.onGold,
                             padding: const EdgeInsets.symmetric(vertical: 15),
                           ),
                           child: _saving
-                              ? const SizedBox(
+                              ? SizedBox(
                                   width: 18,
                                   height: 18,
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2,
-                                    color: Color(0xFF17120A),
+                                    color: TaqwaColors.onGold,
                                   ),
                                 )
                               : Text(
@@ -254,7 +257,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Icon(
+                          Icon(
                             Icons.lock_outline,
                             size: 12,
                             color: TaqwaColors.muted,
@@ -263,7 +266,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                           Expanded(
                             child: Text(
                               text.privacyNote,
-                              style: const TextStyle(
+                              style: TextStyle(
                                 color: TaqwaColors.muted,
                                 fontSize: 8,
                                 height: 1.5,
@@ -297,7 +300,7 @@ class _Feature extends StatelessWidget {
         height: 28,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: const Color(0xFF211A0D),
+          color: TaqwaColors.chip,
           border: Border.all(color: TaqwaColors.border),
         ),
         child: Icon(icon, size: 14, color: TaqwaColors.goldLight),
@@ -348,7 +351,7 @@ class _LanguageSheetState extends State<_LanguageSheet> {
                   borderRadius: BorderRadius.circular(4),
                 ),
               ),
-              const Padding(
+              Padding(
                 padding: EdgeInsets.fromLTRB(16, 12, 16, 4),
                 child: Row(
                   children: [
@@ -369,7 +372,7 @@ class _LanguageSheetState extends State<_LanguageSheet> {
                 child: TextField(
                   onChanged: (value) => setState(() => _query = value),
                   style: const TextStyle(fontSize: 12),
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     hintText: 'Suchen · Search …',
                     prefixIcon: Icon(
                       Icons.search,
@@ -385,7 +388,7 @@ class _LanguageSheetState extends State<_LanguageSheet> {
                   padding: const EdgeInsets.fromLTRB(10, 2, 10, 14),
                   itemCount: visible.length,
                   separatorBuilder: (_, _) =>
-                      const Divider(height: 1, color: Color(0xFF242220)),
+                      Divider(height: 1, color: TaqwaColors.border),
                   itemBuilder: (context, index) {
                     final language = visible[index];
                     final selected = language.code == widget.current;
@@ -419,13 +422,10 @@ class _LanguageSheetState extends State<_LanguageSheet> {
                       ),
                       subtitle: Text(
                         language.englishName,
-                        style: const TextStyle(
-                          fontSize: 8,
-                          color: TaqwaColors.muted,
-                        ),
+                        style: TextStyle(fontSize: 8, color: TaqwaColors.muted),
                       ),
                       trailing: selected
-                          ? const Icon(
+                          ? Icon(
                               Icons.check_circle,
                               size: 16,
                               color: TaqwaColors.gold,

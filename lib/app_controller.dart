@@ -448,6 +448,18 @@ class TaqwaController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Erscheinungsbild: `system`, `light` oder `dark`.
+  Future<void> setThemeMode(String value) async {
+    final normalized = switch (value) {
+      'light' => 'light',
+      'dark' => 'dark',
+      _ => 'system',
+    };
+    await repository.updateSettings(themeMode: normalized);
+    settings = await repository.loadSettings();
+    notifyListeners();
+  }
+
   Future<void> setAdhan({
     required bool enabled,
     required int minutesBefore,
