@@ -2160,6 +2160,8 @@ class SettingsScreen extends StatelessWidget {
                   ),
                 ),
               ),
+              const SizedBox(height: 20),
+              const _DeveloperFooter(),
             ],
           ),
         ),
@@ -2331,6 +2333,74 @@ class _ThemeModeSelector extends StatelessWidget {
           ),
         ),
       ],
+    ],
+  );
+}
+
+class _DeveloperFooter extends StatelessWidget {
+  const _DeveloperFooter();
+
+  @override
+  Widget build(BuildContext context) => Column(
+    children: [
+      Container(
+        width: 52,
+        height: 52,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          border: Border.all(color: TaqwaColors.goldBorder),
+          color: TaqwaColors.chip,
+          boxShadow: [
+            BoxShadow(
+              color: TaqwaColors.shadow,
+              blurRadius: 14,
+              offset: const Offset(0, 5),
+            ),
+          ],
+        ),
+        child: ClipOval(
+          child: Image.asset(
+            'assets/branding/logo.png',
+            width: 52,
+            height: 52,
+            fit: BoxFit.cover,
+            filterQuality: FilterQuality.medium,
+            errorBuilder: (_, _, _) => Icon(
+              Icons.nightlight_round,
+              color: TaqwaColors.goldLight,
+              size: 24,
+            ),
+          ),
+        ),
+      ),
+      const SizedBox(height: 10),
+      Text(
+        'TAQWA TRACK',
+        style: TextStyle(
+          color: TaqwaColors.goldLight,
+          fontWeight: FontWeight.w800,
+          letterSpacing: 2.4,
+          fontSize: 11,
+        ),
+      ),
+      const SizedBox(height: 4),
+      Text(
+        'Entwickelt von Alsafdi Baschar',
+        key: const ValueKey('developer-credit'),
+        style: TextStyle(
+          color: TaqwaColors.text.withValues(alpha: 0.85),
+          fontSize: 10.5,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.2,
+        ),
+      ),
+      const SizedBox(height: 3),
+      Text(
+        'Version $appVersion · Build $appBuild',
+        style: TextStyle(color: TaqwaColors.muted, fontSize: 8.5),
+      ),
+      const SizedBox(height: 10),
+      Container(width: 44, height: 1, color: TaqwaColors.border),
     ],
   );
 }

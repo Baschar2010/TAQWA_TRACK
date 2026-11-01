@@ -648,6 +648,13 @@ void main() {
     expect(controller.settings!.themeMode, 'dark');
     expect(find.text('OLED-Schwarzmodus'), findsOneWidget);
 
+    // Hersteller-Angabe ganz unten in den Einstellungen.
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('developer-credit')),
+      240,
+    );
+    expect(find.text('Entwickelt von Alsafdi Baschar'), findsOneWidget);
+
     await controller.setThemeMode('system');
     await tester.pumpAndSettle();
   });
