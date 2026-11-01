@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'app_info.dart';
+import 'feedback_screen.dart';
 import 'theme.dart';
-
-const supportEmail = 'alsafdibaschar5@gmail.com';
 
 /// Öffnet das E-Mail-Programm mit einer vorbereiteten Nachricht.
 Future<void> contactSupport(BuildContext context) async {
@@ -62,7 +62,7 @@ class PrivacyPolicyScreen extends StatelessWidget {
                   ),
                   SizedBox(height: 2),
                   Text(
-                    'Stand: Januar 2026 · Version 1.4.0',
+                    'Stand: November 2026 · Version $appVersion',
                     style: TextStyle(color: TaqwaColors.muted, fontSize: 9),
                   ),
                   SizedBox(height: 10),
@@ -466,14 +466,38 @@ class FaqScreen extends StatelessWidget {
                       ),
                     ),
                   ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => const FeedbackScreen(),
+                        ),
+                      ),
+                      icon: const Icon(Icons.star_outline, size: 16),
+                      label: const Text(
+                        'Feedback & Bewertung',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: TaqwaColors.goldLight,
+                        side: const BorderSide(color: TaqwaColors.border),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
             const SizedBox(height: 10),
-            const Center(
+            Center(
               child: Text(
-                'TAQWA TRACK · Version 1.4.0 · Offline-First',
-                style: TextStyle(color: TaqwaColors.muted, fontSize: 8),
+                'TAQWA TRACK · Version $appVersion · Offline-First',
+                style: const TextStyle(color: TaqwaColors.muted, fontSize: 8),
               ),
             ),
           ],

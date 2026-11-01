@@ -8,6 +8,7 @@ import 'package:hijri/hijri_calendar.dart';
 import 'app_controller.dart';
 import 'app_info.dart';
 import 'domain.dart';
+import 'feedback_screen.dart';
 import 'hadith_screen.dart';
 import 'info_screens.dart';
 import 'language.dart';
@@ -17,6 +18,8 @@ import 'prayer_qibla_screens.dart';
 import 'quran_screen.dart';
 import 'tasbih_screen.dart';
 import 'theme.dart';
+import 'update_dialog.dart';
+import 'update_service.dart';
 
 class MainShell extends StatefulWidget {
   const MainShell({super.key, required this.controller});
@@ -1789,6 +1792,23 @@ class ProfileScreen extends StatelessWidget {
             ).push(MaterialPageRoute<void>(builder: (_) => const FaqScreen())),
           ),
           _SettingsTile(
+            icon: Icons.rate_review_outlined,
+            title: 'Feedback & Bewertung',
+            subtitle: 'Sterne geben und direkt an den Entwickler schreiben',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) =>
+                    FeedbackScreen(initialName: controller.settings!.name),
+              ),
+            ),
+          ),
+          _SettingsTile(
+            icon: Icons.system_update_outlined,
+            title: 'Nach Updates suchen',
+            subtitle: 'Version $appVersion · GitHub-Release',
+            onTap: () => _checkForUpdates(context),
+          ),
+          _SettingsTile(
             icon: Icons.info_outline,
             title: 'Über TAQWA TRACK',
             subtitle: 'Version $appVersion · Offline-First',
@@ -1802,6 +1822,22 @@ class ProfileScreen extends StatelessWidget {
       ),
     ),
   );
+
+  /// Manueller Update-Check aus den Einstellungen.
+  Future<void> _checkForUpdates(BuildContext context) async {
+    final service = UpdateService();
+    final release = await service.check();
+    if (!context.mounted) return;
+    if (release == null) {
+      _message(context, 'Du bist auf dem neuesten Stand (v$appVersion).');
+      return;
+    }
+    await showUpdateDialog(
+      context,
+      release: release,
+      currentVersion: service.currentVersion,
+    );
+  }
 
   void _message(BuildContext context, String text) =>
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));

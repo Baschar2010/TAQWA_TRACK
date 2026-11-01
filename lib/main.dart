@@ -8,6 +8,8 @@ import 'language.dart';
 import 'notifications.dart';
 import 'screens.dart';
 import 'theme.dart';
+import 'update_dialog.dart';
+import 'update_service.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -16,12 +18,20 @@ Future<void> main() async {
   final controller = TaqwaController(TaqwaRepository());
   await controller.initialize();
   await NotificationService.initialize();
-  runApp(TaqwaTrackApp(controller: controller));
+  runApp(TaqwaTrackApp(controller: controller, updateService: UpdateService()));
 }
 
 class TaqwaTrackApp extends StatefulWidget {
-  const TaqwaTrackApp({super.key, required this.controller});
+  const TaqwaTrackApp({
+    super.key,
+    required this.controller,
+    this.updateService,
+  });
   final TaqwaController controller;
+
+  /// Wird von [main] gesetzt. In Tests bleibt der Wert `null`, damit keine
+  /// echten Netzwerkaufrufe und Timer entstehen.
+  final UpdateService? updateService;
 
   @override
   State<TaqwaTrackApp> createState() => _TaqwaTrackAppState();
@@ -29,10 +39,35 @@ class TaqwaTrackApp extends StatefulWidget {
 
 class _TaqwaTrackAppState extends State<TaqwaTrackApp>
     with WidgetsBindingObserver {
+  final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
+  bool _updateChecked = false;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _maybeCheckForUpdates();
+  }
+
+  /// Einmaliger Update-Check kurz nach dem Start. Fehler und Offline-Zustand
+  /// bleiben unsichtbar – die App funktioniert immer vollständig.
+  Future<void> _maybeCheckForUpdates() async {
+    final service = widget.updateService;
+    if (service == null || _updateChecked) return;
+    _updateChecked = true;
+    // Erst den ersten Frame zeichnen lassen, dann prüfen.
+    await Future<void>.delayed(const Duration(milliseconds: 1200));
+    final release = await service.check();
+    if (!mounted || release == null) return;
+    final navContext =
+        _navigatorKey.currentState?.overlay?.context ??
+        _navigatorKey.currentContext;
+    if (navContext == null || !navContext.mounted) return;
+    await showUpdateDialog(
+      navContext,
+      release: release,
+      currentVersion: service.currentVersion,
+    );
   }
 
   @override
@@ -58,6 +93,7 @@ class _TaqwaTrackAppState extends State<TaqwaTrackApp>
       final language = languageFor(controller.settings?.language);
       return MaterialApp(
         title: 'TAQWA TRACK',
+        navigatorKey: _navigatorKey,
         debugShowCheckedModeBanner: false,
         theme: taqwaTheme(oled: controller.settings?.oled ?? false),
         locale: language.locale,

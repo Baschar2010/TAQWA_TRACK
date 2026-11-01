@@ -6,8 +6,10 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:intl/intl.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'package:taqwa_track/app_controller.dart';
+import 'package:taqwa_track/app_info.dart';
 import 'package:taqwa_track/data/taqwa_repository.dart';
 import 'package:taqwa_track/domain.dart';
+import 'package:taqwa_track/feedback_screen.dart';
 import 'package:taqwa_track/hadith_screen.dart';
 import 'package:taqwa_track/info_screens.dart';
 import 'package:taqwa_track/language.dart';
@@ -18,6 +20,8 @@ import 'package:taqwa_track/quran_screen.dart';
 import 'package:taqwa_track/screens.dart';
 import 'package:taqwa_track/tasbih_screen.dart';
 import 'package:taqwa_track/theme.dart';
+import 'package:taqwa_track/update_dialog.dart';
+import 'package:taqwa_track/update_service.dart';
 
 /// In-Memory-Repository: hält alle Daten im Speicher, damit die Tests
 /// ohne echte SQLite-Datei und ohne Plattform-Plugins laufen.
@@ -817,6 +821,122 @@ void main() {
         }
       }
     }
+  });
+
+  testWidgets('Feedback sammelt Sterne, Text und sendet', (tester) async {
+    FeedbackDraft? sent;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: taqwaTheme(),
+        home: FeedbackScreen(
+          initialName: 'Bilal',
+          onSend: (draft) async {
+            sent = draft;
+            return true;
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Tippe auf einen Stern'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('feedback-star-4')));
+    await tester.pumpAndSettle();
+    expect(find.text('Sehr gut · 4 von 5'), findsOneWidget);
+
+    await tester.enterText(
+      find.byKey(const ValueKey('feedback-message')),
+      'Die App ist großartig.',
+    );
+    await tester.tap(find.byKey(const ValueKey('feedback-send')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(sent, isNotNull);
+    expect(sent!.rating, 4);
+    expect(sent!.message, 'Die App ist großartig.');
+    expect(sent!.name, 'Bilal');
+    expect(find.text('Danke für dein Feedback!'), findsOneWidget);
+
+    await tester.tap(find.text('Schließen'));
+    await tester.pumpAndSettle();
+    expect(find.text('Tippe auf einen Stern'), findsOneWidget);
+  });
+
+  testWidgets('Feedback verlangt Sterne oder Text', (tester) async {
+    var called = false;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: taqwaTheme(),
+        home: FeedbackScreen(
+          onSend: (_) async {
+            called = true;
+            return true;
+          },
+        ),
+      ),
+    );
+    await tester.tap(find.byKey(const ValueKey('feedback-send')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(called, isFalse);
+    expect(
+      find.text('Bitte vergib Sterne oder schreibe ein paar Worte.'),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('Update-Dialog bietet Später und Jetzt aktualisieren', (
+    tester,
+  ) async {
+    Uri? opened;
+    var accepted = false;
+    const release = ReleaseInfo(
+      version: '1.6.0',
+      tag: 'v1.6.0',
+      apkUrl: 'https://example.com/TAQWA_TRACK_v1.6.0.apk',
+      pageUrl: 'https://example.com/releases/v1.6.0',
+      notes: '## Neu\n- Update-Check\n- Feedback',
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: taqwaTheme(),
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: Center(
+              child: ElevatedButton(
+                onPressed: () async {
+                  accepted = await showUpdateDialog(
+                    context,
+                    release: release,
+                    currentVersion: '1.5.0',
+                    launcher: (uri) async {
+                      opened = uri;
+                      return true;
+                    },
+                  );
+                },
+                child: const Text('öffnen'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('öffnen'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Version 1.6.0 ist da'), findsOneWidget);
+    expect(find.text('Später'), findsOneWidget);
+    expect(find.text('Jetzt aktualisieren'), findsOneWidget);
+    expect(find.textContaining('Update-Check'), findsOneWidget);
+
+    await tester.tap(find.text('Jetzt aktualisieren'));
+    await tester.pumpAndSettle();
+
+    expect(accepted, isTrue);
+    expect(opened?.toString(), 'https://example.com/TAQWA_TRACK_v1.6.0.apk');
   });
 }
 
