@@ -121,5 +121,80 @@ void main() {
       await reopened.close();
       await directory.delete(recursive: true);
     });
+
+    test('direct family messages and the partner address persist', () async {
+      final repo = memoryRepository();
+      const snapshot = ProfileSnapshot(
+        code: 'K7QF2M',
+        name: 'Aisha',
+        prayerMask: '10000',
+        habitsDone: 1,
+        habitsTotal: 3,
+        streak: 4,
+        day: '2026-10-30',
+        syncHost: '192.168.1.42',
+        syncPort: 48765,
+      );
+      final partner = await repo.savePartnerSnapshot(snapshot);
+      expect(partner.syncHost, '192.168.1.42');
+      expect(partner.syncPort, 48765);
+      expect(partner.canReceiveDirectly, isTrue);
+
+      await repo.saveFamilyMessage(
+        partnerCode: partner.code,
+        direction: 'out',
+        kind: 'nudge',
+        text: 'Bitte vergesse Fajr nicht',
+        prayer: 'fajr',
+        createdAt: DateTime(2026, 10, 30, 12),
+      );
+      await repo.saveFamilyMessage(
+        partnerCode: partner.code,
+        direction: 'in',
+        kind: 'message',
+        text: 'Danke, ich bete jetzt',
+        createdAt: DateTime(2026, 10, 30, 12, 3),
+      );
+
+      final messages = await repo.familyMessages(partner.code);
+      expect(messages, hasLength(2));
+      expect(messages.first.text, 'Danke, ich bete jetzt');
+      expect(messages.first.incoming, isTrue);
+      expect(messages.last.prayerValue, Prayer.fajr);
+      expect((await repo.familyMessages(partner.code, limit: 1)).length, 1);
+
+      // Ein QR-Code ohne WLAN-Daten darf die bekannte Adresse nicht löschen.
+      await repo.savePartnerSnapshot(
+        const ProfileSnapshot(
+          code: 'K7QF2M',
+          name: 'Aisha',
+          prayerMask: '11000',
+          habitsDone: 2,
+          habitsTotal: 3,
+          streak: 5,
+          day: '2026-10-31',
+        ),
+      );
+      final refreshed = (await repo.partners()).single;
+      expect(refreshed.syncHost, '192.168.1.42');
+      expect(refreshed.syncPort, 48765);
+
+      await repo.unlinkPartner(partner.id);
+      expect(await repo.familyMessages(partner.code), isEmpty);
+      await repo.close();
+    });
+
+    test(
+      'family alerts are enabled by default and can be switched off',
+      () async {
+        final repo = memoryRepository();
+        expect((await repo.loadSettings()).familyAlerts, isTrue);
+        await repo.updateSettings(familyAlerts: false);
+        expect((await repo.loadSettings()).familyAlerts, isFalse);
+        await repo.updateSettings(familyAlerts: true);
+        expect((await repo.loadSettings()).familyAlerts, isTrue);
+        await repo.close();
+      },
+    );
   });
 }

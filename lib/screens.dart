@@ -2023,6 +2023,23 @@ class SettingsScreen extends StatelessWidget {
                           }
                         },
                       ),
+                    const SizedBox(height: 8),
+                    Divider(height: 1, color: TaqwaColors.border),
+                    const SizedBox(height: 4),
+                    SwitchListTile.adaptive(
+                      contentPadding: EdgeInsets.zero,
+                      value: settings.familyAlerts,
+                      activeThumbColor: TaqwaColors.gold,
+                      title: const Text(
+                        'Familien-Nachrichten',
+                        style: TextStyle(fontSize: 11),
+                      ),
+                      subtitle: const Text(
+                        'Nudges und Nachrichten aus dem Family-Tab',
+                        style: TextStyle(fontSize: 9),
+                      ),
+                      onChanged: controller.setFamilyAlerts,
+                    ),
                     const SizedBox(height: 4),
                     Text(
                       'Hinweis: Android kann Benachrichtigungen bei aktivierter '

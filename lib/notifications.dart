@@ -20,6 +20,7 @@ class NotificationService {
 
   static const _channelId = 'prayer_reminders';
   static const _adhanChannelId = 'prayer_adhan';
+  static const _familyChannelId = 'family_messages';
 
   static bool get _supported =>
       !kIsWeb && (Platform.isAndroid || Platform.isIOS);
@@ -65,6 +66,14 @@ class NotificationService {
           importance: Importance.high,
           sound: RawResourceAndroidNotificationSound('adhan'),
           playSound: true,
+        ),
+      );
+      await android?.createNotificationChannel(
+        const AndroidNotificationChannel(
+          _familyChannelId,
+          'Familien-Nachrichten',
+          description: 'Erinnerungen und Nachrichten deiner Familie',
+          importance: Importance.high,
         ),
       );
     } catch (error) {
@@ -154,20 +163,30 @@ class NotificationService {
     await _plugin.cancelAllPendingNotifications();
   }
 
-  /// Sofortige Benachrichtigung, z. B. wenn eine Erinnerung eines
-  /// Familienmitglieds eingetroffen ist.
+  /// Sofortige Benachrichtigung, z. B. wenn eine Erinnerung oder Nachricht
+  /// eines Familienmitglieds eingetroffen ist.
   static Future<void> showNow({
     required String title,
     required String body,
+    int id = 9001,
   }) async {
     try {
       await initialize();
       if (!_supported) return;
       await _plugin.show(
-        id: 9001,
+        id: id,
         title: title,
         body: body,
-        notificationDetails: _details(withAdhan: true),
+        notificationDetails: const NotificationDetails(
+          android: AndroidNotificationDetails(
+            _familyChannelId,
+            'Familien-Nachrichten',
+            channelDescription: 'Erinnerungen und Nachrichten deiner Familie',
+            importance: Importance.high,
+            priority: Priority.high,
+            category: AndroidNotificationCategory.message,
+          ),
+        ),
       );
     } catch (error) {
       // Auf Plattformen ohne Benachrichtigungs-Plugin (z. B. Tests) bleibt

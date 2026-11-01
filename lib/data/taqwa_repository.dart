@@ -34,6 +34,8 @@ class Partner {
     this.snapshotAt,
     this.reminderAt,
     this.reminderText,
+    this.syncHost,
+    this.syncPort,
   });
   final int id;
   final String code;
@@ -50,6 +52,14 @@ class Partner {
   final String? snapshotAt;
   final String? reminderAt;
   final String? reminderText;
+
+  /// Letzte bekannte WLAN-Adresse des gekoppelten Geräts. Damit lassen sich
+  /// Erinnerungen und Nachrichten ohne erneuten Scan direkt zustellen.
+  final String? syncHost;
+  final int? syncPort;
+
+  bool get canReceiveDirectly =>
+      (syncHost?.trim().isNotEmpty ?? false) && (syncPort ?? 0) > 0;
 
   String get displayName {
     final local = alias?.trim() ?? '';
@@ -80,7 +90,7 @@ class TaqwaRepository {
     _db = await _factory.openDatabase(
       path,
       options: OpenDatabaseOptions(
-        version: 6,
+        version: 7,
         onCreate: _createSchema,
         onUpgrade: _upgradeSchema,
       ),
@@ -107,6 +117,7 @@ class TaqwaRepository {
       theme_mode TEXT NOT NULL DEFAULT 'system',
       adhan_enabled INTEGER NOT NULL DEFAULT 0,
       adhan_minutes_before INTEGER NOT NULL DEFAULT 0,
+      family_alerts INTEGER NOT NULL DEFAULT 1,
       tasbih_count INTEGER NOT NULL DEFAULT 0,
       tasbih_target INTEGER NOT NULL DEFAULT 33,
       outbox_reminder_at TEXT,
@@ -186,7 +197,18 @@ class TaqwaRepository {
       snapshot_day TEXT NOT NULL DEFAULT '',
       snapshot_at TEXT,
       reminder_at TEXT,
-      reminder_text TEXT
+      reminder_text TEXT,
+      sync_host TEXT,
+      sync_port INTEGER
+    )''');
+    await db.execute('''CREATE TABLE family_messages (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      partner_code TEXT NOT NULL,
+      direction TEXT NOT NULL,
+      kind TEXT NOT NULL,
+      text TEXT NOT NULL,
+      prayer TEXT,
+      created_at TEXT NOT NULL
     )''');
     await db.execute('''CREATE TABLE quran_bookmarks (
       surah INTEGER NOT NULL,
@@ -285,6 +307,24 @@ class TaqwaRepository {
         "ALTER TABLE settings ADD COLUMN theme_mode TEXT NOT NULL DEFAULT 'system'",
       );
     }
+    if (oldVersion < 7) {
+      for (final statement in [
+        'ALTER TABLE settings ADD COLUMN family_alerts INTEGER NOT NULL DEFAULT 1',
+        'ALTER TABLE partners ADD COLUMN sync_host TEXT',
+        'ALTER TABLE partners ADD COLUMN sync_port INTEGER',
+        '''CREATE TABLE IF NOT EXISTS family_messages (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          partner_code TEXT NOT NULL,
+          direction TEXT NOT NULL,
+          kind TEXT NOT NULL,
+          text TEXT NOT NULL,
+          prayer TEXT,
+          created_at TEXT NOT NULL
+        )''',
+      ]) {
+        await db.execute(statement);
+      }
+    }
   }
 
   Future<AppSettings> loadSettings() async {
@@ -307,6 +347,7 @@ class TaqwaRepository {
       themeMode: (row['theme_mode'] as String?) ?? 'system',
       adhanEnabled: row['adhan_enabled'] == 1,
       adhanMinutesBefore: (row['adhan_minutes_before'] as int?) ?? 0,
+      familyAlerts: (row['family_alerts'] as int?) != 0,
       tasbihCount: (row['tasbih_count'] as int?) ?? 0,
       tasbihTarget: (row['tasbih_target'] as int?) ?? 33,
       outboxReminderAt: row['outbox_reminder_at'] as String?,
@@ -327,6 +368,7 @@ class TaqwaRepository {
     String? themeMode,
     bool? adhanEnabled,
     int? adhanMinutesBefore,
+    bool? familyAlerts,
     int? tasbihCount,
     int? tasbihTarget,
     String? outboxReminderAt,
@@ -353,6 +395,9 @@ class TaqwaRepository {
     }
     if (adhanMinutesBefore != null) {
       values['adhan_minutes_before'] = adhanMinutesBefore;
+    }
+    if (familyAlerts != null) {
+      values['family_alerts'] = familyAlerts ? 1 : 0;
     }
     if (tasbihCount != null) values['tasbih_count'] = tasbihCount;
     if (tasbihTarget != null) values['tasbih_target'] = tasbihTarget;
@@ -602,6 +647,8 @@ class TaqwaRepository {
                 snapshotAt: r['snapshot_at'] as String?,
                 reminderAt: r['reminder_at'] as String?,
                 reminderText: r['reminder_text'] as String?,
+                syncHost: r['sync_host'] as String?,
+                syncPort: r['sync_port'] as int?,
               ),
             )
             .toList(),
@@ -622,6 +669,10 @@ class TaqwaRepository {
       'reminder_at': snapshot.reminderAt,
       'reminder_text': snapshot.reminderText,
     };
+    // Eine ältere Adresse nicht löschen, nur weil der neue QR-Code ohne
+    // WLAN-Daten erzeugt wurde (z. B. manuell eingegebener Code).
+    if (snapshot.syncHost != null) values['sync_host'] = snapshot.syncHost;
+    if (snapshot.syncPort != null) values['sync_port'] = snapshot.syncPort;
     final existing = await db.query(
       'partners',
       where: 'code = ?',
@@ -671,8 +722,76 @@ class TaqwaRepository {
     whereArgs: [id],
   );
 
-  Future<void> unlinkPartner(int id) async =>
-      (await database).delete('partners', where: 'id = ?', whereArgs: [id]);
+  /// Speichert eine gesendete oder empfangene Nachricht für den Verlauf
+  /// im Family-Bereich.
+  Future<FamilyMessage> saveFamilyMessage({
+    required String partnerCode,
+    required String direction,
+    required String kind,
+    required String text,
+    String? prayer,
+    DateTime? createdAt,
+  }) async {
+    final db = await database;
+    final id = await db.insert('family_messages', {
+      'partner_code': partnerCode,
+      'direction': direction,
+      'kind': kind,
+      'text': text,
+      'prayer': prayer,
+      'created_at': (createdAt ?? DateTime.now()).toIso8601String(),
+    });
+    final rows = await db.query(
+      'family_messages',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+    return _messageFromRow(rows.single);
+  }
+
+  /// Letzte Nachrichten eines gekoppelten Geräts, neueste zuerst.
+  Future<List<FamilyMessage>> familyMessages(
+    String partnerCode, {
+    int limit = 6,
+  }) async => (await database)
+      .query(
+        'family_messages',
+        where: 'partner_code = ?',
+        whereArgs: [partnerCode],
+        orderBy: 'created_at DESC, id DESC',
+        limit: limit,
+      )
+      .then((rows) => rows.map(_messageFromRow).toList());
+
+  Future<void> clearFamilyMessages(String partnerCode) async =>
+      (await database).delete(
+        'family_messages',
+        where: 'partner_code = ?',
+        whereArgs: [partnerCode],
+      );
+
+  FamilyMessage _messageFromRow(Map<String, Object?> row) => FamilyMessage(
+    id: row['id']! as int,
+    partnerCode: row['partner_code']! as String,
+    direction: row['direction']! as String,
+    kind: row['kind']! as String,
+    text: row['text']! as String,
+    prayer: row['prayer'] as String?,
+    createdAt: row['created_at']! as String,
+  );
+
+  Future<void> unlinkPartner(int id) async {
+    final db = await database;
+    final rows = await db.query('partners', where: 'id = ?', whereArgs: [id]);
+    if (rows.isNotEmpty) {
+      await db.delete(
+        'family_messages',
+        where: 'partner_code = ?',
+        whereArgs: [rows.single['code']],
+      );
+    }
+    await db.delete('partners', where: 'id = ?', whereArgs: [id]);
+  }
 
   /// Setzt einen rein lokalen Spitznamen. Er bleibt auf diesem Gerät und
   /// wird nicht über den QR-Code an das andere Gerät übertragen.

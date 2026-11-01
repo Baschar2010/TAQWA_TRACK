@@ -53,6 +53,7 @@ class LinkSyncService {
   Future<void> start({
     required Future<ProfileSnapshot> Function() mySnapshot,
     required Future<void> Function(ProfileSnapshot) onPeerLinked,
+    Future<void> Function(FamilyPing)? onMessage,
   }) async {
     if (!_supported || _socket != null) return;
     try {
@@ -67,7 +68,7 @@ class LinkSyncService {
         if (event != RawSocketEvent.read) return;
         final datagram = socket.receive();
         if (datagram == null) return;
-        unawaited(_handle(datagram, mySnapshot, onPeerLinked));
+        unawaited(_handle(datagram, mySnapshot, onPeerLinked, onMessage));
       });
     } catch (error) {
       debugPrint('Lokale Kopplung nicht verfügbar: $error');
@@ -121,14 +122,20 @@ class LinkSyncService {
     Datagram datagram,
     Future<ProfileSnapshot> Function() mySnapshot,
     Future<void> Function(ProfileSnapshot) onPeerLinked,
+    Future<void> Function(FamilyPing)? onMessage,
   ) async {
     try {
       final text = utf8.decode(datagram.data, allowMalformed: true);
       final parts = text.split('|');
       if (parts.length != 3 || parts[0] != packetPrefix) return;
-      final snapshot = ProfileSnapshot.tryParse(
-        utf8.decode(base64Decode(parts[2])),
-      );
+      final payload = utf8.decode(base64Decode(parts[2]), allowMalformed: true);
+      if (parts[1] == 'MSG') {
+        final ping = FamilyPing.tryParse(payload);
+        if (ping == null || onMessage == null) return;
+        await onMessage(ping);
+        return;
+      }
+      final snapshot = ProfileSnapshot.tryParse(payload);
       if (snapshot == null) return;
       if (parts[1] == 'HELLO') {
         await onPeerLinked(snapshot);
@@ -148,6 +155,26 @@ class LinkSyncService {
     } catch (error) {
       debugPrint('Kopplungsnachricht konnte nicht gelesen werden: $error');
     }
+  }
+
+  /// Schickt eine kurze Nachricht direkt an ein gekoppeltes Gerät.
+  /// Gibt `true` zurück, wenn das Paket abgeschickt werden konnte.
+  bool sendPing({
+    required String host,
+    required int port,
+    required FamilyPing ping,
+  }) {
+    final socket = _socket;
+    if (socket == null) return false;
+    final address = InternetAddress.tryParse(host.trim());
+    if (address == null || port <= 0 || port > 65535) return false;
+    final encoded = base64Encode(utf8.encode(ping.encode()));
+    return socket.send(
+          utf8.encode('$packetPrefix|MSG|$encoded'),
+          address,
+          port,
+        ) >
+        0;
   }
 
   void _send(

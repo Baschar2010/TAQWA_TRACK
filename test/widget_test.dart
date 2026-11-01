@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -54,6 +56,8 @@ class _FakeRepository extends TaqwaRepository {
   final habitLog = <int, HabitStatus>{};
   final awardedHabits = <int>{};
   final linkedPartners = <Partner>[];
+  final messages = <FamilyMessage>[];
+  int _messageId = 0;
   final bookmarks = <(int, int)>[];
   (int, int)? progress;
 
@@ -136,6 +140,8 @@ class _FakeRepository extends TaqwaRepository {
       snapshotAt: DateTime.now().toIso8601String(),
       reminderAt: snapshot.reminderAt,
       reminderText: snapshot.reminderText,
+      syncHost: snapshot.syncHost ?? previous?.syncHost,
+      syncPort: snapshot.syncPort ?? previous?.syncPort,
     );
     linkedPartners.add(partner);
     return partner;
@@ -160,12 +166,54 @@ class _FakeRepository extends TaqwaRepository {
       snapshotAt: old.snapshotAt,
       reminderAt: old.reminderAt,
       reminderText: old.reminderText,
+      syncHost: old.syncHost,
+      syncPort: old.syncPort,
     );
   }
 
   @override
-  Future<void> unlinkPartner(int id) async =>
-      linkedPartners.removeWhere((p) => p.id == id);
+  Future<void> unlinkPartner(int id) async {
+    final index = linkedPartners.indexWhere((p) => p.id == id);
+    if (index == -1) return;
+    final code = linkedPartners[index].code;
+    linkedPartners.removeAt(index);
+    messages.removeWhere((m) => m.partnerCode == code);
+  }
+
+  @override
+  Future<FamilyMessage> saveFamilyMessage({
+    required String partnerCode,
+    required String direction,
+    required String kind,
+    required String text,
+    String? prayer,
+    DateTime? createdAt,
+  }) async {
+    final message = FamilyMessage(
+      id: ++_messageId,
+      partnerCode: partnerCode,
+      direction: direction,
+      kind: kind,
+      text: text,
+      prayer: prayer,
+      createdAt: (createdAt ?? DateTime.now()).toIso8601String(),
+    );
+    messages.add(message);
+    return message;
+  }
+
+  @override
+  Future<List<FamilyMessage>> familyMessages(
+    String partnerCode, {
+    int limit = 6,
+  }) async {
+    final found = messages
+        .where((m) => m.partnerCode == partnerCode)
+        .toList()
+        .reversed
+        .toList();
+    return found.take(limit).toList();
+  }
 
   @override
   Future<void> completeOnboarding(
@@ -215,6 +263,7 @@ class _FakeRepository extends TaqwaRepository {
     String? themeMode,
     bool? adhanEnabled,
     int? adhanMinutesBefore,
+    bool? familyAlerts,
     int? tasbihCount,
     int? tasbihTarget,
     String? outboxReminderAt,
@@ -234,6 +283,7 @@ class _FakeRepository extends TaqwaRepository {
       themeMode: themeMode,
       adhanEnabled: adhanEnabled,
       adhanMinutesBefore: adhanMinutesBefore,
+      familyAlerts: familyAlerts,
       tasbihCount: tasbihCount,
       tasbihTarget: tasbihTarget,
       outboxReminderAt: outboxReminderAt,
@@ -457,6 +507,70 @@ void main() {
     expect(controller.partners.single.displayName, 'Papa');
   });
 
+  testWidgets('Family bietet Gebets-Nudge und Nachrichtendialog', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1080, 3200);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await repository.savePartnerSnapshot(
+      const ProfileSnapshot(
+        code: 'PARTNR',
+        name: 'Aisha',
+        prayerMask: '01111',
+        habitsDone: 3,
+        habitsTotal: 3,
+        streak: 4,
+        day: '2026-10-30',
+      ),
+    );
+    await controller.refresh();
+
+    await tester.pumpWidget(TaqwaTrackApp(controller: controller));
+    await settleApp(tester);
+    await tapNav(tester, 'Family');
+
+    // Fajr ist zur Testzeit (12:00) fällig und noch offen.
+    final chip = find.byKey(const ValueKey('nudge-PARTNR-fajr'));
+    await tester.ensureVisible(chip);
+    await tester.pump();
+    expect(chip, findsOneWidget);
+    expect(find.text('Fajr erinnern'), findsOneWidget);
+
+    await tester.tap(chip);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(
+      find.textContaining('Direkt senden war gerade nicht möglich'),
+      findsOneWidget,
+    );
+
+    await tester.pump(const Duration(seconds: 4));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    final messageButton = find.byKey(const ValueKey('partner-message-PARTNR'));
+    await tester.ensureVisible(messageButton);
+    await tester.pump();
+    await tester.tap(messageButton);
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('Nachricht an Aisha'), findsOneWidget);
+
+    await tester.enterText(
+      find.byKey(const ValueKey('family-message-input')),
+      'Bitte denk an Fajr',
+    );
+    await tester.tap(find.byKey(const ValueKey('family-message-send')));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(
+      find.textContaining('konnte nicht zugestellt werden'),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('Gebete-Tab zeigt Tages-Habits, Hadith und 1/5', (tester) async {
     await tester.pumpWidget(TaqwaTrackApp(controller: controller));
     await settleApp(tester);
@@ -637,6 +751,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(const ValueKey('theme-mode-system')), findsOneWidget);
+    expect(find.text('Familien-Nachrichten'), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('theme-mode-light')));
     await tester.pumpAndSettle();
@@ -720,6 +835,101 @@ void main() {
     expect(peersB.map((p) => p.code), contains('AAAAAA'));
     // … und der Scanner kennt das gescannte Gerät.
     expect(peersA.map((p) => p.code), contains('BBBBBB'));
+  });
+
+  test('Nudge und Nachricht erreichen das gekoppelte Gerät direkt', () async {
+    final directory = await Directory.systemTemp.createTemp('taqwa-nudge-');
+    addTearDown(() => directory.delete(recursive: true));
+    final repoA = TaqwaRepository(
+      factory: databaseFactoryFfi,
+      path: '${directory.path}/a.sqlite',
+    );
+    final repoB = TaqwaRepository(
+      factory: databaseFactoryFfi,
+      path: '${directory.path}/b.sqlite',
+    );
+    await repoA.completeOnboarding('Aisha', 'AAAAAA');
+    await repoB.completeOnboarding('Bilal', 'BBBBBB');
+    final a = TaqwaController(
+      repoA,
+      clock: () => DateTime(2026, 10, 30, 12),
+      linkSync: LinkSyncService(allowDesktop: true, port: 49031),
+    );
+    final b = TaqwaController(
+      repoB,
+      clock: () => DateTime(2026, 10, 30, 12),
+      linkSync: LinkSyncService(allowDesktop: true, port: 49032),
+    );
+    addTearDown(a.dispose);
+    addTearDown(b.dispose);
+    addTearDown(a.close);
+    addTearDown(b.close);
+    await a.initialize();
+    await b.initialize();
+
+    const aSnapshot = ProfileSnapshot(
+      code: 'AAAAAA',
+      name: 'Aisha',
+      prayerMask: '00000',
+      habitsDone: 0,
+      habitsTotal: 0,
+      streak: 0,
+      day: '2026-10-30',
+      syncHost: '127.0.0.1',
+      syncPort: 49031,
+    );
+    const bSnapshot = ProfileSnapshot(
+      code: 'BBBBBB',
+      name: 'Bilal',
+      prayerMask: '01111',
+      habitsDone: 4,
+      habitsTotal: 4,
+      streak: 7,
+      day: '2026-10-30',
+      syncHost: '127.0.0.1',
+      syncPort: 49032,
+    );
+    // Beide Seiten kennen die WLAN-Adresse des anderen Geräts.
+    await repoA.savePartnerSnapshot(bSnapshot);
+    await repoB.savePartnerSnapshot(aSnapshot);
+    await a.refresh();
+    await b.refresh();
+
+    final partner = a.partners.single;
+    expect(partner.canReceiveDirectly, isTrue);
+    // Fajr ist um 12:00 längst fällig und bei Bilal noch offen.
+    expect(a.nudgeablePrayers(partner), contains(Prayer.fajr));
+
+    Future<bool> waitFor(bool Function() check) async {
+      for (var i = 0; i < 60; i++) {
+        if (check()) return true;
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+      }
+      return false;
+    }
+
+    expect(await a.sendPrayerNudge(partner, Prayer.fajr), isTrue);
+    expect(
+      await waitFor(() => b.messagesFor('AAAAAA').isNotEmpty),
+      isTrue,
+      reason: 'Die Gebets-Erinnerung kam nicht an.',
+    );
+    final nudge = b.messagesFor('AAAAAA').first;
+    expect(nudge.incoming, isTrue);
+    expect(nudge.text, 'Bitte vergesse Fajr nicht');
+    expect(nudge.prayerValue, Prayer.fajr);
+    // Der Absender führt die Nachricht ebenfalls im Verlauf.
+    expect(a.messagesFor('BBBBBB').first.text, 'Bitte vergesse Fajr nicht');
+
+    expect(await b.sendPartnerMessage(b.partners.single, 'Danke ❤'), isTrue);
+    expect(
+      await waitFor(
+        () => a.messagesFor('BBBBBB').any((m) => m.text == 'Danke ❤'),
+      ),
+      isTrue,
+      reason: 'Die persönliche Nachricht kam nicht an.',
+    );
+    expect(a.messagesFor('BBBBBB').first.incoming, isTrue);
   });
 
   test('Spitzname bleibt in der Datenbank erhalten', () async {

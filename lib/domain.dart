@@ -18,6 +18,26 @@ const prayerNames = <Prayer, String>{
 String dayKey(DateTime date) =>
     '${date.year.toString().padLeft(4, '0')}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}';
 
+/// Gebete, deren Zeit bereits begonnen hat, die im geteilten Stand aber noch
+/// offen sind. Die kurze Schonfrist verhindert eine Erinnerung genau zum
+/// Adhan – man soll erst in Ruhe beten können.
+List<Prayer> missingDuePrayers({
+  required String prayerMask,
+  required Map<Prayer, DateTime> times,
+  required DateTime now,
+  Duration grace = const Duration(minutes: 10),
+}) {
+  final result = <Prayer>[];
+  for (var index = 0; index < Prayer.values.length; index++) {
+    final prayer = Prayer.values[index];
+    if (index < prayerMask.length && prayerMask[index] == '1') continue;
+    final time = times[prayer];
+    if (time == null) continue;
+    if (now.isAfter(time.add(grace))) result.add(prayer);
+  }
+  return result;
+}
+
 /// Beginn des nächsten Ramadan (1. Ramadan, 00:00).
 DateTime nextRamadanStart(DateTime from) {
   final hijri = HijriCalendar.fromDate(from);
@@ -68,6 +88,7 @@ class AppSettings {
     this.themeMode = 'system',
     this.adhanEnabled = false,
     this.adhanMinutesBefore = 0,
+    this.familyAlerts = true,
     this.tasbihCount = 0,
     this.tasbihTarget = 33,
     this.outboxReminderAt,
@@ -102,6 +123,10 @@ class AppSettings {
   /// Minuten vor dem Gebet, zu denen erinnert wird (0 = zur Gebetszeit).
   final int adhanMinutesBefore;
 
+  /// Erinnerungen und Nachrichten aus der Familie als Benachrichtigung
+  /// anzeigen. Auch bei `false` bleiben die Nachrichten in der App sichtbar.
+  final bool familyAlerts;
+
   final int tasbihCount;
   final int tasbihTarget;
 
@@ -130,6 +155,7 @@ class AppSettings {
     String? themeMode,
     bool? adhanEnabled,
     int? adhanMinutesBefore,
+    bool? familyAlerts,
     int? tasbihCount,
     int? tasbihTarget,
     String? outboxReminderAt,
@@ -153,6 +179,7 @@ class AppSettings {
     themeMode: themeMode ?? this.themeMode,
     adhanEnabled: adhanEnabled ?? this.adhanEnabled,
     adhanMinutesBefore: adhanMinutesBefore ?? this.adhanMinutesBefore,
+    familyAlerts: familyAlerts ?? this.familyAlerts,
     tasbihCount: tasbihCount ?? this.tasbihCount,
     tasbihTarget: tasbihTarget ?? this.tasbihTarget,
     outboxReminderAt: clearOutbox
@@ -391,4 +418,129 @@ class ProfileSnapshot {
       return value;
     }
   }
+}
+
+/// Art einer kurzen Nachricht zwischen gekoppelten Geräten.
+enum FamilyPingKind { nudge, message }
+
+/// Nachricht, die ohne Server direkt über das lokale WLAN an ein
+/// gekoppeltes Familienmitglied geht: eine Gebets-Erinnerung oder ein
+/// kurzer persönlicher Text.
+class FamilyPing {
+  const FamilyPing({
+    required this.fromCode,
+    required this.fromName,
+    required this.kind,
+    this.prayer,
+    this.text = '',
+    this.sentAt,
+  });
+
+  static const prefix = 'TTMSG1';
+
+  final String fromCode;
+  final String fromName;
+  final FamilyPingKind kind;
+  final Prayer? prayer;
+  final String text;
+  final String? sentAt;
+
+  String get sender {
+    final name = fromName.trim();
+    return name.isEmpty ? 'Deine Familie' : name;
+  }
+
+  /// Text, wie er in der Nachrichtenliste des Empfängers steht.
+  String get displayText => switch (kind) {
+    FamilyPingKind.nudge => 'Bitte vergesse $_prayerName nicht',
+    FamilyPingKind.message => text.trim(),
+  };
+
+  String get notificationTitle => switch (kind) {
+    FamilyPingKind.nudge => '$sender erinnert dich an $_prayerName',
+    FamilyPingKind.message => '$sender schreibt dir',
+  };
+
+  String get notificationBody => switch (kind) {
+    FamilyPingKind.nudge =>
+      'Bitte vergesse $_prayerName nicht – möge Allah es annehmen.',
+    FamilyPingKind.message =>
+      text.trim().isEmpty
+          ? 'Denk an deine Gebete – ich bin bei dir.'
+          : text.trim(),
+  };
+
+  String get _prayerName =>
+      prayer == null ? 'dein Gebet' : prayerNames[prayer]!;
+
+  String encode() => [
+    prefix,
+    fromCode,
+    Uri.encodeComponent(fromName),
+    kind.name,
+    prayer?.name ?? '',
+    Uri.encodeComponent(text),
+    sentAt ?? '',
+  ].join('|');
+
+  /// Liest eine empfangene Nachricht. Ungültige Pakete ergeben `null` und
+  /// dürfen niemals eine Ausnahme auslösen.
+  static FamilyPing? tryParse(String raw) {
+    try {
+      final parts = raw.trim().split('|');
+      if (parts.length < 5 || parts[0] != prefix) return null;
+      final fromCode = parts[1].trim();
+      if (fromCode.isEmpty) return null;
+      final kind = FamilyPingKind.values.asNameMap()[parts[3]];
+      if (kind == null) return null;
+      final prayer = Prayer.values.asNameMap()[parts[4]];
+      return FamilyPing(
+        fromCode: fromCode,
+        fromName: _decodePing(parts[2]).trim(),
+        kind: kind,
+        prayer: prayer,
+        text: parts.length > 5 ? _decodePing(parts[5]) : '',
+        sentAt: parts.length > 6 && parts[6].isNotEmpty ? parts[6] : null,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static String _decodePing(String value) {
+    try {
+      return Uri.decodeComponent(value);
+    } catch (_) {
+      return value;
+    }
+  }
+}
+
+/// Gespeicherte Nachricht eines gekoppelten Geräts.
+class FamilyMessage {
+  const FamilyMessage({
+    required this.id,
+    required this.partnerCode,
+    required this.direction,
+    required this.kind,
+    required this.text,
+    required this.createdAt,
+    this.prayer,
+  });
+
+  final int id;
+  final String partnerCode;
+
+  /// `in` für empfangene, `out` für selbst gesendete Nachrichten.
+  final String direction;
+  final String kind;
+  final String text;
+  final String? prayer;
+  final String createdAt;
+
+  bool get incoming => direction == 'in';
+
+  Prayer? get prayerValue => Prayer.values.asNameMap()[prayer];
+
+  DateTime? get time => DateTime.tryParse(createdAt);
 }

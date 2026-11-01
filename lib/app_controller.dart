@@ -35,6 +35,7 @@ class TaqwaController extends ChangeNotifier {
   Map<int, HabitStatus> todayHabits = {};
   Map<String, Map<int, HabitStatus>> weekHabits = {};
   List<Partner> partners = [];
+  Map<String, List<FamilyMessage>> partnerMessages = {};
   List<(int, int)> bookmarks = [];
   DateTime selectedDate = DateTime.now();
   bool ready = false;
@@ -121,6 +122,7 @@ class TaqwaController extends ChangeNotifier {
     await linkSync.start(
       mySnapshot: () async => profileSnapshot,
       onPeerLinked: _handlePeerLinked,
+      onMessage: _handleIncomingPing,
     );
   }
 
@@ -130,6 +132,38 @@ class TaqwaController extends ChangeNotifier {
     await repository.savePartnerSnapshot(snapshot);
     partners = await repository.partners();
     notifyListeners();
+  }
+
+  /// Eine Nachricht eines gekoppelten Geräts ist eingetroffen: im Verlauf
+  /// ablegen und – wenn erlaubt – sofort als Benachrichtigung zeigen.
+  Future<void> _handleIncomingPing(FamilyPing ping) async {
+    if (ping.fromCode.isEmpty || ping.fromCode == settings?.profileId) return;
+    Partner? partner;
+    for (final item in partners) {
+      if (item.code == ping.fromCode) partner = item;
+    }
+    if (partner != null) {
+      await repository.saveFamilyMessage(
+        partnerCode: partner.code,
+        direction: 'in',
+        kind: ping.kind.name,
+        text: ping.displayText,
+        prayer: ping.prayer?.name,
+        createdAt: now,
+      );
+      partners = await repository.partners();
+      partnerMessages[partner.code] = await repository.familyMessages(
+        partner.code,
+      );
+      notifyListeners();
+    }
+    if (settings?.familyAlerts ?? true) {
+      await NotificationService.showNow(
+        title: ping.notificationTitle,
+        body: ping.notificationBody,
+        id: 9000 + (ping.fromCode.hashCode & 0xff),
+      );
+    }
   }
 
   /// Liest die eigene IP neu ein, z. B. nach einem WLAN-Wechsel.
@@ -162,6 +196,10 @@ class TaqwaController extends ChangeNotifier {
     todayHabits = await repository.habitStatuses(selectedDate);
     weekHabits = await repository.habitWeek(selectedDate);
     partners = await repository.partners();
+    partnerMessages = {
+      for (final partner in partners)
+        partner.code: await repository.familyMessages(partner.code),
+    };
     bookmarks = await repository.quranBookmarks();
     lastReadNotifier.value = await repository.quranProgress();
   }
@@ -396,6 +434,86 @@ class TaqwaController extends ChangeNotifier {
     notifyListeners();
   }
 
+  // ---- Smarte Family-Erinnerungen -----------------------------------
+
+  /// Fehlende Gebete, deren Zeit laut eigenem Standort schon begonnen hat.
+  List<Prayer> nudgeablePrayers(Partner partner) {
+    final current = settings;
+    if (current == null) return const [];
+    final todaySchedule = PrayerSchedule.calculate(
+      date: now,
+      latitude: current.latitude,
+      longitude: current.longitude,
+      method: current.calculationMethod,
+      hanafi: current.hanafi,
+    );
+    return missingDuePrayers(
+      prayerMask: partner.prayerMask,
+      times: todaySchedule.times,
+      now: now,
+    );
+  }
+
+  /// Schickt eine gezielte Gebets-Erinnerung direkt an ein gekoppeltes
+  /// Gerät. Gibt `false` zurück, wenn es gerade nicht erreichbar ist.
+  Future<bool> sendPrayerNudge(Partner partner, Prayer prayer) async {
+    final current = settings;
+    if (current == null) return false;
+    final ping = FamilyPing(
+      fromCode: current.profileId,
+      fromName: current.name,
+      kind: FamilyPingKind.nudge,
+      prayer: prayer,
+      sentAt: now.toIso8601String(),
+    );
+    if (!_deliver(partner, ping)) return false;
+    await _rememberMessage(partner, ping);
+    return true;
+  }
+
+  /// Schickt eine kurze persönliche Nachricht an ein gekoppeltes Gerät.
+  Future<bool> sendPartnerMessage(Partner partner, String text) async {
+    final clean = text.trim();
+    final current = settings;
+    if (current == null || clean.isEmpty) return false;
+    final ping = FamilyPing(
+      fromCode: current.profileId,
+      fromName: current.name,
+      kind: FamilyPingKind.message,
+      text: clean,
+      sentAt: now.toIso8601String(),
+    );
+    if (!_deliver(partner, ping)) return false;
+    await _rememberMessage(partner, ping);
+    return true;
+  }
+
+  bool _deliver(Partner partner, FamilyPing ping) {
+    final host = partner.syncHost?.trim() ?? '';
+    final port = partner.syncPort ?? 0;
+    if (host.isEmpty || port <= 0) return false;
+    return linkSync.sendPing(host: host, port: port, ping: ping);
+  }
+
+  Future<void> _rememberMessage(Partner partner, FamilyPing ping) async {
+    await repository.saveFamilyMessage(
+      partnerCode: partner.code,
+      direction: 'out',
+      kind: ping.kind.name,
+      text: ping.displayText,
+      prayer: ping.prayer?.name,
+      createdAt: now,
+    );
+    partnerMessages[partner.code] = await repository.familyMessages(
+      partner.code,
+    );
+    notifyListeners();
+  }
+
+  /// Verlauf mit einem gekoppelten Gerät, neueste Nachricht zuerst.
+  List<FamilyMessage> messagesFor(String code) =>
+      partnerMessages[code] ?? const <FamilyMessage>[];
+
   // ---- Quran --------------------------------------------------------
 
   Future<void> saveLastRead(int surah, int ayah) async {
@@ -471,6 +589,14 @@ class TaqwaController extends ChangeNotifier {
     settings = await repository.loadSettings();
     notifyListeners();
     await applyNotificationSchedule();
+  }
+
+  /// Familien-Benachrichtigungen ein- oder ausschalten. Der Nachrichten-
+  /// verlauf bleibt davon unberührt.
+  Future<void> setFamilyAlerts(bool value) async {
+    await repository.updateSettings(familyAlerts: value);
+    settings = await repository.loadSettings();
+    notifyListeners();
   }
 
   Future<void> applyNotificationSchedule() async {

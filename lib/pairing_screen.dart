@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
@@ -522,6 +523,8 @@ class _PartnerCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final stale = partner.snapshotDay != dayKey(DateTime.now());
+    final missing = controller.nudgeablePrayers(partner);
+    final messages = controller.messagesFor(partner.code);
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: TaqwaCard(
@@ -741,8 +744,156 @@ class _PartnerCard extends StatelessWidget {
                 ),
               ),
             ],
+            const SizedBox(height: 9),
+            Row(
+              children: [
+                Icon(
+                  Icons.notifications_active_outlined,
+                  size: 12,
+                  color: TaqwaColors.gold,
+                ),
+                const SizedBox(width: 5),
+                Expanded(
+                  child: Eyebrow(
+                    missing.isEmpty
+                        ? 'ALLE FÄLLIGEN GEBETE ABGEHAKT'
+                        : 'NOCH OFFEN · JETZT ERINNERN',
+                  ),
+                ),
+                if (stale)
+                  Text(
+                    'Stand älter',
+                    style: TextStyle(color: TaqwaColors.muted, fontSize: 7.5),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            if (missing.isEmpty)
+              Text(
+                'MashaAllah – nichts offen. Du kannst trotzdem eine Nachricht '
+                'schicken.',
+                style: TextStyle(
+                  color: TaqwaColors.muted,
+                  fontSize: 8,
+                  height: 1.4,
+                ),
+              )
+            else
+              Wrap(
+                spacing: 6,
+                runSpacing: 6,
+                children: [
+                  for (final prayer in missing)
+                    _NudgeChip(
+                      key: ValueKey('nudge-${partner.code}-${prayer.name}'),
+                      label: '${prayerNames[prayer]} erinnern',
+                      onTap: () => _sendNudge(context, prayer),
+                    ),
+                ],
+              ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                key: ValueKey('partner-message-${partner.code}'),
+                onPressed: () => _sendMessage(context),
+                icon: const Icon(Icons.edit_note, size: 15),
+                label: const Text(
+                  'Nachricht senden',
+                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.w600),
+                ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: TaqwaColors.goldLight,
+                  side: BorderSide(color: TaqwaColors.goldBorder),
+                  padding: const EdgeInsets.symmetric(vertical: 9),
+                ),
+              ),
+            ),
+            if (messages.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Divider(height: 1, color: TaqwaColors.border),
+              const SizedBox(height: 6),
+              for (final message in messages.take(3))
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(top: 2),
+                        child: Icon(
+                          message.incoming
+                              ? Icons.call_received
+                              : Icons.call_made,
+                          size: 9,
+                          color: message.incoming
+                              ? TaqwaColors.green
+                              : TaqwaColors.muted,
+                        ),
+                      ),
+                      const SizedBox(width: 5),
+                      Expanded(
+                        child: Text(
+                          message.text,
+                          style: TextStyle(
+                            color: message.incoming
+                                ? TaqwaColors.green
+                                : TaqwaColors.text,
+                            fontSize: 8.5,
+                            height: 1.35,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 5),
+                      Text(
+                        _relative(message.createdAt),
+                        style: TextStyle(color: TaqwaColors.muted, fontSize: 7),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
           ],
         ),
+      ),
+    );
+  }
+
+  Future<void> _sendNudge(BuildContext context, Prayer prayer) async {
+    HapticFeedback.lightImpact();
+    final sent = await controller.sendPrayerNudge(partner, prayer);
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          sent
+              ? '${prayerNames[prayer]}-Erinnerung ist bei '
+                    '${partner.displayName} angekommen.'
+              : 'Direkt senden war gerade nicht möglich. Seid beide im '
+                    'selben WLAN und scannt einmal den QR-Code neu.',
+        ),
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
+  Future<void> _sendMessage(BuildContext context) async {
+    final text = await showDialog<String>(
+      context: context,
+      builder: (_) => _MessageDialog(partnerName: partner.displayName),
+    );
+    if (text == null || text.trim().isEmpty || !context.mounted) return;
+    final sent = await controller.sendPartnerMessage(partner, text);
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          sent
+              ? 'Nachricht an ${partner.displayName} gesendet.'
+              : 'Die Nachricht konnte nicht zugestellt werden. Seid beide im '
+                    'selben WLAN und scannt einmal den QR-Code neu.',
+        ),
+        duration: const Duration(seconds: 3),
       ),
     );
   }
@@ -821,6 +972,110 @@ class _PartnerCard extends StatelessWidget {
     );
     if (confirmed == true) await controller.unlinkPartner(partner.id);
   }
+}
+
+/// Kleine Aktion für ein fälliges, noch offenes Gebet.
+class _NudgeChip extends StatelessWidget {
+  const _NudgeChip({super.key, required this.label, required this.onTap});
+
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => InkWell(
+    onTap: onTap,
+    borderRadius: BorderRadius.circular(20),
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: TaqwaColors.chip,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: TaqwaColors.goldBorder),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.notifications_active_outlined,
+            size: 11,
+            color: TaqwaColors.goldLight,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 9,
+              color: TaqwaColors.goldLight,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+/// Kurze persönliche Nachricht an ein gekoppeltes Gerät.
+class _MessageDialog extends StatefulWidget {
+  const _MessageDialog({required this.partnerName});
+
+  final String partnerName;
+
+  @override
+  State<_MessageDialog> createState() => _MessageDialogState();
+}
+
+class _MessageDialogState extends State<_MessageDialog> {
+  final _input = TextEditingController();
+
+  @override
+  void dispose() {
+    _input.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    backgroundColor: TaqwaColors.card,
+    title: Text(
+      'Nachricht an ${widget.partnerName}',
+      style: const TextStyle(fontSize: 15),
+    ),
+    content: Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TextField(
+          key: const ValueKey('family-message-input'),
+          controller: _input,
+          autofocus: true,
+          maxLength: 160,
+          minLines: 2,
+          maxLines: 4,
+          textCapitalization: TextCapitalization.sentences,
+          decoration: const InputDecoration(
+            labelText: 'Kurze Nachricht',
+            hintText: 'z. B. Bitte denk an Fajr',
+          ),
+        ),
+        Text(
+          'Kommt direkt über euer WLAN an – ohne Server und ohne Internet.',
+          style: TextStyle(color: TaqwaColors.muted, fontSize: 9, height: 1.45),
+        ),
+      ],
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text('Abbrechen'),
+      ),
+      FilledButton(
+        key: const ValueKey('family-message-send'),
+        onPressed: () => Navigator.pop(context, _input.text),
+        child: const Text('Senden'),
+      ),
+    ],
+  );
 }
 
 class _FallbackLinkSheet extends StatelessWidget {
