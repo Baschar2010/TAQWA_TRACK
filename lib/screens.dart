@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hijri/hijri_calendar.dart';
 
+import 'admin_feedback.dart';
 import 'app_controller.dart';
 import 'app_info.dart';
 import 'app_shortcuts.dart';
@@ -2494,9 +2495,16 @@ class _DeveloperFooter extends StatelessWidget {
         ),
       ),
       const SizedBox(height: 3),
-      Text(
-        'Version $appVersion · Build $appBuild',
-        style: TextStyle(color: TaqwaColors.muted, fontSize: 8.5),
+      GestureDetector(
+        onLongPress: () => Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => const AdminFeedbackScreen(),
+          ),
+        ),
+        child: Text(
+          'Version $appVersion · Build $appBuild',
+          style: TextStyle(color: TaqwaColors.muted, fontSize: 8.5),
+        ),
       ),
       const SizedBox(height: 10),
       Container(width: 44, height: 1, color: TaqwaColors.border),

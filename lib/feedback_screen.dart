@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'admin_feedback.dart';
 import 'app_info.dart';
 import 'theme.dart';
 
@@ -112,6 +113,16 @@ class _FeedbackScreenState extends State<FeedbackScreen> {
       );
       return;
     }
+
+    // Lokal speichern, damit das Admin-Dashboard die Feedbacks einsehen kann.
+    // Best-effort und nicht-blockierend, damit die App/Tests nicht hängen.
+    FeedbackStorage.save(
+      FeedbackEntry(
+        rating: draft.rating,
+        message: draft.message,
+        name: draft.name,
+      ),
+    ).catchError((_) {});
 
     setState(() => _sending = true);
     final sent = await (widget.onSend ?? sendFeedbackByMail)(draft);
