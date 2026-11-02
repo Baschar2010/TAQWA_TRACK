@@ -37,7 +37,6 @@ class _CompassWidgetState extends State<CompassWidget> {
 
   double? _heading;
   bool _sensorMissing = false;
-  bool _lowAccuracy = false;
   double _qibla = 0;
 
   // Letzter Rohwert für den Tiefpass.
@@ -89,14 +88,9 @@ class _CompassWidgetState extends State<CompassWidget> {
           _sensorTimeout?.cancel();
           final rawHeading = _headingFromMagnetometer(event);
           final smoothed = _lowPass(rawHeading);
-          final magnitude = math.sqrt(
-            event.x * event.x + event.y * event.y + event.z * event.z,
-          );
-          final inaccurate = magnitude < 20 || magnitude > 100;
           setState(() {
             _heading = smoothed;
             _sensorMissing = false;
-            _lowAccuracy = inaccurate;
           });
         },
         onError: (_) {
@@ -144,35 +138,6 @@ class _CompassWidgetState extends State<CompassWidget> {
         heading != null && _angleDelta(_qibla, heading).abs() <= 5;
     return Column(
       children: [
-        if (_lowAccuracy)
-          Container(
-            width: double.infinity,
-            margin: const EdgeInsets.only(bottom: 10),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            decoration: BoxDecoration(
-              color: TaqwaColors.red.withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: TaqwaColors.red),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.warning_amber_rounded,
-                    color: TaqwaColors.red, size: 18),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Magnetische Störung erkannt. Bitte bewege das '
-                    'Smartphone in einer 8er-Schleife.',
-                    style: TextStyle(
-                      color: TaqwaColors.red,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
         Semantics(
           label: heading == null
               ? 'Qibla-Kompass, Sensor wird gesucht'

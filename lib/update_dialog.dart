@@ -28,7 +28,7 @@ Future<bool> showUpdateDialog(
 }) async {
   final accepted = await showDialog<bool>(
     context: context,
-    barrierDismissible: true,
+    barrierDismissible: false,
     builder: (_) =>
         UpdateDialog(release: release, currentVersion: currentVersion),
   );
