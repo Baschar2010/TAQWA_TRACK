@@ -555,6 +555,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 label: 'TÄGLICHER STREAK',
                 value: '${settings.streak} Tage',
                 detail: settings.streak == 0 ? 'Starte heute' : 'Weiter so!',
+                iconColor: _streakFlameColor(settings.streak),
               ),
             ),
             const SizedBox(width: 8),
@@ -943,9 +944,11 @@ class _StatCard extends StatelessWidget {
     required this.label,
     required this.value,
     required this.detail,
+    this.iconColor,
   });
   final IconData icon;
   final String label, value, detail;
+  final Color? iconColor;
   @override
   Widget build(BuildContext context) => TaqwaCard(
     goldBorder: true,
@@ -955,7 +958,7 @@ class _StatCard extends StatelessWidget {
       children: [
         Row(
           children: [
-            Icon(icon, color: TaqwaColors.gold, size: 12),
+            Icon(icon, color: iconColor ?? TaqwaColors.gold, size: 12),
             const SizedBox(width: 4),
             Expanded(child: Eyebrow(label)),
           ],
@@ -2544,3 +2547,13 @@ class _SettingsTile extends StatelessWidget {
     ),
   );
 }
+
+Color _streakFlameColor(int streak) {
+  if (streak <= 0) return TaqwaColors.muted;
+  if (streak < 3) return Colors.orange.shade300;
+  if (streak < 7) return Colors.orange;
+  if (streak < 14) return TaqwaColors.gold;
+  if (streak < 30) return Colors.deepOrange;
+  return Colors.redAccent;
+}
+

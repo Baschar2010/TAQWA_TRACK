@@ -69,6 +69,26 @@ class _CompassWidgetState extends State<CompassWidget> {
     }
   }
 
+  /// Setzt Filter und Sensor-Stream zurück und kalibriert neu.
+  void _calibrate() {
+    _subscription?.cancel();
+    _sensorTimeout?.cancel();
+    _filteredHeading = null;
+    if (mounted) {
+      setState(() {
+        _heading = null;
+        _sensorMissing = false;
+      });
+    }
+    _listen();
+    _refreshPosition();
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Kompass wird neu kalibriert …')),
+      );
+    }
+  }
+
   void _listen() {
     _sensorTimeout = Timer(const Duration(seconds: 3), () {
       if (mounted && _heading == null) {
@@ -211,6 +231,25 @@ class _CompassWidgetState extends State<CompassWidget> {
               ),
             ),
           ),
+        const SizedBox(height: 12),
+        Center(
+          child: FilledButton.icon(
+            onPressed: _calibrate,
+            icon: const Icon(Icons.explore, size: 16),
+            label: const Text(
+              'Kompass kalibrieren',
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
+            ),
+            style: FilledButton.styleFrom(
+              backgroundColor: TaqwaColors.gold,
+              foregroundColor: TaqwaColors.onGold,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+          ),
+        ),
       ],
     );
   }
