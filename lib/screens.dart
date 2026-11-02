@@ -607,16 +607,12 @@ class _HomeScreenState extends State<HomeScreen> {
                     const RewardStar(size: 13),
                 ],
               ),
-              GridView.count(
-                crossAxisCount: 2,
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                mainAxisSpacing: 8,
-                crossAxisSpacing: 8,
-                childAspectRatio: 2.6,
+              Column(
                 children: [
-                  for (final prayer in Prayer.values)
-                    _PrayerTile(controller: c, prayer: prayer),
+                  for (var i = 0; i < Prayer.values.length; i++) ...[
+                    if (i != 0) const SizedBox(height: 8),
+                    _PrayerTile(controller: c, prayer: Prayer.values[i]),
+                  ],
                 ],
               ),
               const SizedBox(height: 8),
@@ -1015,7 +1011,7 @@ class _PrayerTile extends StatelessWidget {
           },
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 220),
-            padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 2),
+            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
             decoration: BoxDecoration(
               color: tierSurface(tier),
               border: Border.all(
@@ -1042,25 +1038,26 @@ class _PrayerTile extends StatelessWidget {
                           ]
                         : null),
             ),
-            child: Column(
+            child: Row(
               children: [
-                Text(
-                  prayerNames[prayer]!,
-                  style: const TextStyle(
-                    fontSize: 8,
-                    fontWeight: FontWeight.w700,
+                Expanded(
+                  child: Text(
+                    prayerNames[prayer]!,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
                 ),
-                const SizedBox(height: 4),
                 Text(
                   formatClock(time),
-                  style: TextStyle(color: TaqwaColors.muted, fontSize: 8),
+                  style: TextStyle(color: TaqwaColors.muted, fontSize: 11),
                 ),
-                const SizedBox(height: 5),
+                const SizedBox(width: 10),
                 AnimatedContainer(
                   duration: const Duration(milliseconds: 180),
-                  width: 17,
-                  height: 17,
+                  width: 22,
+                  height: 22,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
                     color: done ? accent : Colors.transparent,
@@ -1085,7 +1082,7 @@ class _PrayerTile extends StatelessWidget {
                     curve: Curves.easeOutBack,
                     child: Icon(
                       Icons.check,
-                      size: 12,
+                      size: 14,
                       color: allDone ? TaqwaColors.onGold : Colors.white,
                     ),
                   ),
