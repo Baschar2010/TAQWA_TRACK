@@ -1,5 +1,3 @@
-import 'dart:io' show Platform;
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:workmanager/workmanager.dart';
@@ -31,7 +29,7 @@ void backgroundCallbackDispatcher() {
 /// Meldet den periodischen Cloud-Abgleich einmalig an. Fehler dürfen den
 /// App-Start nie verhindern.
 Future<void> setupBackgroundSync() async {
-  if (kIsWeb || !Platform.isAndroid) return;
+  if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) return;
   try {
     await Workmanager().initialize(backgroundCallbackDispatcher);
     await Workmanager().registerPeriodicTask(

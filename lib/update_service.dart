@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
+
+import 'package:http/http.dart' as http;
 
 import 'app_info.dart';
 
@@ -143,28 +144,22 @@ class UpdateService {
 
   /// Fragt die neueste Veröffentlichung bei GitHub ab.
   static Future<ReleaseInfo?> fetchLatestRelease() async {
-    final client = HttpClient()..connectionTimeout = const Duration(seconds: 6);
+    final client = http.Client();
     try {
-      final request = await client.getUrl(Uri.parse(githubLatestReleaseApi));
-      request.headers.set(
-        HttpHeaders.acceptHeader,
-        'application/vnd.github+json',
-      );
-      request.headers.set(
-        HttpHeaders.userAgentHeader,
-        'TAQWA-TRACK/$appVersion',
-      );
-      final response = await request.close().timeout(
-        const Duration(seconds: 8),
-      );
-      if (response.statusCode != HttpStatus.ok) {
-        await response.drain<void>();
-        return null;
-      }
-      final body = await response.transform(utf8.decoder).join();
+      final response = await client
+          .get(
+            Uri.parse(githubLatestReleaseApi),
+            headers: const {
+              'Accept': 'application/vnd.github+json',
+              'User-Agent': 'TAQWA-TRACK/$appVersion',
+            },
+          )
+          .timeout(const Duration(seconds: 8));
+      if (response.statusCode != 200) return null;
+      final body = utf8.decode(response.bodyBytes, allowMalformed: true);
       return ReleaseInfo.fromGitHub(jsonDecode(body));
     } finally {
-      client.close(force: true);
+      client.close();
     }
   }
 }

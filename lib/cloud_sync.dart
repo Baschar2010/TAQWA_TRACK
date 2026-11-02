@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
 
 import 'domain.dart';
 
@@ -185,17 +185,13 @@ abstract class CloudRelay {
 class NtfyCloudRelay implements CloudRelay {
   NtfyCloudRelay({
     this.endpoint = 'https://ntfy.sh',
-    HttpClient? client,
+    http.Client? client,
     this.timeout = const Duration(seconds: 12),
-  }) : _client =
-           client ??
-           (HttpClient()
-             ..connectionTimeout = const Duration(seconds: 8)
-             ..userAgent = 'TaqwaTrack/1.8');
+  }) : _client = client ?? http.Client();
 
   final String endpoint;
   final Duration timeout;
-  final HttpClient _client;
+  final http.Client _client;
 
   Uri _topicUri(String topic, {Map<String, String>? query}) =>
       Uri.parse('$endpoint/$topic').replace(queryParameters: query);
@@ -208,18 +204,18 @@ class NtfyCloudRelay implements CloudRelay {
     final topic = cloudTopicFor(inboxKey);
     if (topic == null) return false;
     try {
-      final request = await _client.postUrl(_topicUri('')).timeout(timeout);
-      request.headers.contentType = ContentType.json;
-      request.write(
-        jsonEncode({
-          'topic': topic,
-          'message': envelope.encode(),
-          'priority': 4,
-          'tags': ['taqwa_track'],
-        }),
-      );
-      final response = await request.close().timeout(timeout);
-      await response.drain<void>();
+      final response = await _client
+          .post(
+            _topicUri(''),
+            headers: const {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'topic': topic,
+              'message': envelope.encode(),
+              'priority': 4,
+              'tags': ['taqwa_track'],
+            }),
+          )
+          .timeout(timeout);
       return response.statusCode >= 200 && response.statusCode < 300;
     } catch (error) {
       debugPrint('Cloud-Nachricht konnte nicht gesendet werden: $error');
@@ -238,13 +234,11 @@ class NtfyCloudRelay implements CloudRelay {
         'since': (cursor == null || cursor.isEmpty) ? 'all' : cursor,
       },
     );
-    final request = await _client.getUrl(uri).timeout(timeout);
-    final response = await request.close().timeout(timeout);
+    final response = await _client.get(uri).timeout(timeout);
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      await response.drain<void>();
       throw const CloudUnavailable();
     }
-    final body = await response.transform(utf8.decoder).join();
+    final body = utf8.decode(response.bodyBytes, allowMalformed: true);
     final envelopes = <CloudEnvelope>[];
     var next = cursor;
     for (final line in const LineSplitter().convert(body)) {
@@ -269,7 +263,7 @@ class NtfyCloudRelay implements CloudRelay {
   }
 
   @override
-  void close() => _client.close(force: true);
+  void close() => _client.close();
 }
 
 /// Der Cloud-Kanal war gerade nicht erreichbar (z. B. kein Netz).

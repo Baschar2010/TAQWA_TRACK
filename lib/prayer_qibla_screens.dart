@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:hijri/hijri_calendar.dart' show HijriCalendar;
 
 import 'app_controller.dart';
+import 'compass_widget.dart';
 import 'domain.dart';
 import 'hadith_screen.dart';
 import 'language.dart';
@@ -736,7 +737,10 @@ class _QiblaScreenState extends State<QiblaScreen> {
                 style: TextStyle(color: TaqwaColors.muted, fontSize: 9),
               ),
               const SizedBox(height: 12),
-              _QiblaCompass(qibla: qibla),
+              CompassWidget(
+                latitude: settings.latitude,
+                longitude: settings.longitude,
+              ),
             ],
           ),
         ),

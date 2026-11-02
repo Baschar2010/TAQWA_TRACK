@@ -1,5 +1,3 @@
-import 'dart:io' show Platform;
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
@@ -23,7 +21,9 @@ class NotificationService {
   static const _familyChannelId = 'family_messages';
 
   static bool get _supported =>
-      !kIsWeb && (Platform.isAndroid || Platform.isIOS);
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.android ||
+          defaultTargetPlatform == TargetPlatform.iOS);
 
   /// Initialisiert das Plugin genau einmal – auch bei parallelen Aufrufen.
   static Future<void> initialize() {
