@@ -6,7 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:hijri/hijri_calendar.dart' show HijriCalendar;
 
 import 'app_controller.dart';
-import 'compass_widget.dart';
+import 'widgets/compass_widget.dart';
 import 'domain.dart';
 import 'hadith_screen.dart';
 import 'language.dart';

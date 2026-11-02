@@ -5,18 +5,14 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 
-import 'domain.dart';
-import 'theme.dart';
+import '../domain.dart';
+import '../theme.dart';
 
 /// Glättungsfaktor für den Tiefpass (Low-Pass) auf den Magnetometer-Wert.
 const double kCompassAlpha = 0.15;
 
-/// Kaaba-Koordinaten (Mekka).
-const double kKaabaLatitude = 21.422487;
-const double kKaabaLongitude = 39.826206;
-
 /// Qibla-Kompass mit Magnetometer (sensors_plus), Tiefpass-Glättung,
-/// GPS-basierter Qibla-Berechnung und Kalibrierungs-Warnung.
+/// GPS-basierter Qibla-Berechnung.
 class CompassWidget extends StatefulWidget {
   const CompassWidget({
     super.key,
@@ -39,7 +35,6 @@ class _CompassWidgetState extends State<CompassWidget> {
   bool _sensorMissing = false;
   double _qibla = 0;
 
-  // Letzter Rohwert für den Tiefpass.
   double? _filteredHeading;
 
   @override
@@ -50,7 +45,6 @@ class _CompassWidgetState extends State<CompassWidget> {
     _listen();
   }
 
-  /// Aktuelle GPS-Position holen und Qibla neu berechnen.
   Future<void> _refreshPosition() async {
     try {
       var permission = await Geolocator.checkPermission();
@@ -100,25 +94,26 @@ class _CompassWidgetState extends State<CompassWidget> {
         cancelOnError: false,
       );
     } on Object {
-      _sensorMissing = true;
+      if (mounted) setState(() => _sensorMissing = true);
     }
   }
 
-  /// Heading (0–360°) aus Magnetometer-Werten.
   double _headingFromMagnetometer(MagnetometerEvent e) {
     var degrees = math.atan2(e.y, e.x) * 180 / math.pi;
     if (degrees < 0) degrees += 360;
     return degrees;
   }
 
-  /// Exponentielle Glättung über den kürzesten Weg um den Kreis (Low-Pass).
   double _lowPass(double value) {
     final previous = _filteredHeading;
     if (previous == null) {
       _filteredHeading = value;
       return value;
     }
-    final delta = _angleDelta(value, previous);
+    // kürzester Weg um den Kreis
+    var delta = value - previous;
+    if (delta > 180) delta -= 360;
+    if (delta < -180) delta += 360;
     final next = (previous + delta * kCompassAlpha + 360) % 360;
     _filteredHeading = next;
     return next;

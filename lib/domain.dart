@@ -281,9 +281,10 @@ double qiblaBearing(double latitude, double longitude) {
   final phi1 = latitude * math.pi / 180;
   final phi2 = kaabaLatitude * math.pi / 180;
   final deltaLon = (kaabaLongitude - longitude) * math.pi / 180;
-  final y = math.sin(deltaLon);
+  final y = math.sin(deltaLon) * math.cos(phi2);
   final x =
-      math.cos(phi1) * math.tan(phi2) - math.sin(phi1) * math.cos(deltaLon);
+      math.cos(phi1) * math.sin(phi2) -
+      math.sin(phi1) * math.cos(phi2) * math.cos(deltaLon);
   final degrees = math.atan2(y, x) * 180 / math.pi;
   return (degrees + 360) % 360;
 }
