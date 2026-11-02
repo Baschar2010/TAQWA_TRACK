@@ -1021,22 +1021,24 @@ class _PrayerTile extends StatelessWidget {
               borderRadius: BorderRadius.circular(9),
               // Vollständig: deutliches Gold-Leuchten. Teilweise: sanftes
               // grünes Signal, dass heute schon etwas geschafft ist.
-              boxShadow: allDone
-                  ? [
-                      BoxShadow(
-                        color: rewardGold.withValues(alpha: 0.40),
-                        blurRadius: 12,
-                        spreadRadius: 1,
-                      ),
-                    ]
-                  : (tier == DayTier.partial
-                        ? [
-                            BoxShadow(
-                              color: TaqwaColors.green.withValues(alpha: 0.22),
-                              blurRadius: 6,
-                            ),
-                          ]
-                        : null),
+              boxShadow: [
+                 BoxShadow(
+                   color: TaqwaColors.shadow,
+                   blurRadius: 10,
+                   offset: const Offset(0, 4),
+                 ),
+                 if (allDone)
+                   BoxShadow(
+                     color: rewardGold.withValues(alpha: 0.40),
+                     blurRadius: 14,
+                     spreadRadius: 1,
+                   )
+                 else if (tier == DayTier.partial)
+                   BoxShadow(
+                     color: TaqwaColors.green.withValues(alpha: 0.22),
+                     blurRadius: 6,
+                   ),
+               ],
             ),
             child: Row(
               children: [
