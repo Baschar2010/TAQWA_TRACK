@@ -1914,6 +1914,16 @@ class ProfileScreen extends StatelessWidget {
             ),
           ),
           _SettingsTile(
+            icon: Icons.admin_panel_settings,
+            title: 'Admin-Bereich',
+            subtitle: 'Geschützter Bereich für Administratoren',
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const AdminFeedbackScreen(),
+              ),
+            ),
+          ),
+          _SettingsTile(
             icon: Icons.system_update_outlined,
             title: 'Nach Updates suchen',
             subtitle: 'Version $appVersion · GitHub-Release',

@@ -669,31 +669,71 @@ class _AdminManagementScreenState extends State<AdminManagementScreen> {
   }
 
   Future<void> _remove(AdminAccount admin) async {
+    // Haupt-Admin: extra Sicherheitsabfrage (Name bestätigen).
     if (admin.isMain) {
-      _snack('Haupt-Admin kann nicht entfernt werden.');
-      return;
+      final ctrl = TextEditingController();
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Haupt-Admin löschen?'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Dies löscht den Haupt-Admin unwiderruflich. '
+                'Zur Bestätigung bitte den Namen „Baschar“ eingeben.',
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: ctrl,
+                decoration: const InputDecoration(labelText: 'Name bestätigen'),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('Abbrechen'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: const Text('Endgültig löschen'),
+            ),
+          ],
+        ),
+      );
+      if (ok != true) return;
+      if (ctrl.text.trim() != admin.name) {
+        _snack('Bestätigung fehlgeschlagen.');
+        return;
+      }
+    } else {
+      final confirm = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: Text('Konto „${admin.name}“ löschen?'),
+          content: const Text(
+            'Möchtest du dieses Konto wirklich unwiderruflich löschen? '
+            'Alle zugehörigen Zugangsdaten werden entfernt.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('Abbrechen'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(ctx).pop(true),
+              child: const Text('Konto löschen'),
+            ),
+          ],
+        ),
+      );
+      if (confirm != true) return;
     }
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('Admin „${admin.name}“ entfernen?'),
-        content: const Text('Diese Aktion kann nicht rückgängig gemacht werden.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Abbrechen'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Entfernen'),
-          ),
-        ],
-      ),
-    );
-    if (confirm != true) return;
     await AdminStorage.remove(admin.name);
     await _reload();
-    _snack('Admin „${admin.name}“ entfernt.');
+    _snack('Konto „${admin.name}“ gelöscht.');
   }
 
   void _snack(String text) {
@@ -801,7 +841,7 @@ class _AdminManagementScreenState extends State<AdminManagementScreen> {
                               ),
                               if (!admin.isMain)
                                 IconButton(
-                                  tooltip: 'Entfernen',
+                                  tooltip: 'Konto löschen',
                                   onPressed: () => _remove(admin),
                                   icon: const Icon(
                                     Icons.delete_outline,
