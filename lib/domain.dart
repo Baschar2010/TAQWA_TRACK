@@ -272,8 +272,8 @@ String formatClock(DateTime time) =>
     '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
 
 /// Koordinaten der Kaaba in Mekka.
-const kaabaLatitude = 21.4225;
-const kaabaLongitude = 39.8262;
+const kaabaLatitude = 21.422487;
+const kaabaLongitude = 39.826206;
 
 /// Peilung (0–360°) von der eigenen Position zur Kaaba, gemessen von Norden
 /// im Uhrzeigersinn.

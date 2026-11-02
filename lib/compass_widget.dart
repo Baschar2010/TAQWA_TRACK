@@ -54,7 +54,10 @@ class _CompassWidgetState extends State<CompassWidget> {
   /// Aktuelle GPS-Position holen und Qibla neu berechnen.
   Future<void> _refreshPosition() async {
     try {
-      final permission = await Geolocator.checkPermission();
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
       if (permission == LocationPermission.denied ||
           permission == LocationPermission.deniedForever) {
         return;
