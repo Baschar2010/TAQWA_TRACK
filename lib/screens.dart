@@ -607,17 +607,16 @@ class _HomeScreenState extends State<HomeScreen> {
                     const RewardStar(size: 13),
                 ],
               ),
-              Row(
+              GridView.count(
+                crossAxisCount: 2,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                mainAxisSpacing: 8,
+                crossAxisSpacing: 8,
+                childAspectRatio: 2.6,
                 children: [
-                  for (var i = 0; i < Prayer.values.length; i++) ...[
-                    if (i != 0) const SizedBox(width: 5),
-                    Expanded(
-                      child: _PrayerTile(
-                        controller: c,
-                        prayer: Prayer.values[i],
-                      ),
-                    ),
-                  ],
+                  for (final prayer in Prayer.values)
+                    _PrayerTile(controller: c, prayer: prayer),
                 ],
               ),
               const SizedBox(height: 8),
