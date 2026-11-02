@@ -34,17 +34,68 @@ Future<bool> showUpdateDialog(
   );
   if (accepted != true) return false;
 
-  final target = Uri.tryParse(release.apkUrl);
-  final open = launcher ?? launchExternal;
-  if (target != null && await open(target)) return true;
+  // Test-/Override-Pfad: externer Launcher (z. B. im Widget-Test).
+  if (launcher != null) {
+    final target = Uri.tryParse(release.apkUrl);
+    if (target != null && await launcher(target)) return true;
+    await Clipboard.setData(ClipboardData(text: release.apkUrl));
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Download-Link kopiert: ${release.apkUrl}')),
+      );
+    }
+    return false;
+  }
 
-  await Clipboard.setData(ClipboardData(text: release.apkUrl));
+  // Produktionspfad: APK herunterladen und Android-Installationsdialog öffnen.
+  if (!context.mounted) return false;
+  return _downloadAndInstall(context, release);
+}
+
+Future<bool> _downloadAndInstall(BuildContext context, ReleaseInfo release) async {
+  final progress = ValueNotifier<double>(0);
+  showDialog<void>(
+    context: context,
+    barrierDismissible: false,
+    builder: (_) => AlertDialog(
+      content: ValueListenableBuilder<double>(
+        valueListenable: progress,
+        builder: (_, value, _) => Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(
+              value: value > 0 ? value : null,
+              color: TaqwaColors.gold,
+            ),
+            const SizedBox(height: 14),
+            Text(
+              'Update wird heruntergeladen … ${(value * 100).round()} %',
+              style: const TextStyle(fontSize: 11),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+
+  final ok = await UpdateService.downloadAndInstallUpdate(
+    release,
+    onProgress: (p) => progress.value = p,
+  );
+
   if (context.mounted) {
+    Navigator.of(context).pop();
+  }
+  progress.dispose();
+
+  if (!ok && context.mounted) {
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Download-Link kopiert: ${release.apkUrl}')),
+      const SnackBar(
+        content: Text('Update konnte nicht heruntergeladen/installiert werden.'),
+      ),
     );
   }
-  return false;
+  return ok;
 }
 
 class UpdateDialog extends StatelessWidget {
@@ -168,7 +219,7 @@ class UpdateDialog extends StatelessWidget {
                 SizedBox(width: 5),
                 Expanded(
                   child: Text(
-                    'Die APK wird in deinem Browser heruntergeladen.',
+                    'Die APK wird heruntergeladen und installiert.',
                     style: TextStyle(color: TaqwaColors.muted, fontSize: 8.5),
                   ),
                 ),

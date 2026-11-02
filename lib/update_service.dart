@@ -1,7 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:http/http.dart' as http;
+import 'package:open_filex/open_filex.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 import 'app_info.dart';
 
@@ -142,7 +145,55 @@ class UpdateService {
     }
   }
 
-  /// Fragt die neueste Veröffentlichung bei GitHub ab.
+  /// Liefert die aktuell installierte Version aus den Paket-Metadaten.
+  static Future<String> installedVersion() async {
+  try {
+    final info = await PackageInfo.fromPlatform();
+    return info.version;
+  } catch (_) {
+    return appVersion;
+  }
+}
+
+/// Lädt die APK des Releases herunter und startet den Android-
+/// Installationsdialog. Gibt `true` zurück, wenn die Installation angestoßen
+/// wurde.
+static Future<bool> downloadAndInstallUpdate(
+  ReleaseInfo release, {
+  void Function(double progress)? onProgress,
+}) async {
+  final uri = Uri.tryParse(release.apkUrl);
+  if (uri == null) return false;
+  final client = http.Client();
+  try {
+    final response = await client.send(http.Request('GET', uri));
+    if (response.statusCode != 200) return false;
+    final file = File('${Directory.systemTemp.path}/TAQWA_TRACK_update.apk');
+    if (await file.exists()) {
+      await file.delete();
+    }
+    final sink = file.openWrite();
+    final total = response.contentLength ?? 0;
+    var received = 0;
+    await for (final chunk in response.stream) {
+      sink.add(chunk);
+      received += chunk.length;
+      if (total > 0) {
+        onProgress?.call(received / total);
+      }
+    }
+    await sink.flush();
+    await sink.close();
+    final result = await OpenFilex.open(file.path);
+    return result.type == ResultType.done;
+  } catch (_) {
+    return false;
+  } finally {
+    client.close();
+  }
+}
+
+/// Fragt die neueste Veröffentlichung bei GitHub ab.
   static Future<ReleaseInfo?> fetchLatestRelease() async {
     final client = http.Client();
     try {

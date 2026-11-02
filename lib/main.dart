@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 
+import 'package:package_info_plus/package_info_plus.dart';
+
 import 'app_controller.dart';
 import 'app_shortcuts.dart';
 import 'background_sync.dart';
@@ -21,10 +23,11 @@ Future<void> main() async {
   await controller.initialize();
   await NotificationService.initialize();
   await setupBackgroundSync();
+  final packageInfo = await PackageInfo.fromPlatform();
   runApp(
     TaqwaTrackApp(
       controller: controller,
-      updateService: UpdateService(),
+      updateService: UpdateService(currentVersion: packageInfo.version),
       shortcuts: AppShortcutService(),
     ),
   );

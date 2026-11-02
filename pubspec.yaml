@@ -21,6 +21,8 @@ dependencies:
   intl: ^0.20.2
   just_audio: ^0.10.6
   mobile_scanner: ^7.4.3
+  open_filex: ^5.0.0
+  package_info_plus: ^10.2.2
   path: ^1.9.1
   qr_flutter: ^4.1.0
   sensors_plus: ^7.1.1
