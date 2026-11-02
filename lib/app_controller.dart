@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:geolocator/geolocator.dart';
 
+import 'cloud_sync.dart';
 import 'data/taqwa_repository.dart';
 import 'domain.dart';
 import 'link_sync.dart';
@@ -18,14 +21,28 @@ class TaqwaController extends ChangeNotifier {
     this.repository, {
     DateTime Function()? clock,
     LinkSyncService? linkSync,
+    CloudRelay? cloudRelay,
+    Duration cloudInterval = const Duration(seconds: 20),
   }) : _clock = clock ?? DateTime.now,
-       linkSync = linkSync ?? LinkSyncService();
+       linkSync = linkSync ?? LinkSyncService(),
+       cloudRelay = cloudRelay ?? NtfyCloudRelay(),
+       _cloudInterval = cloudInterval;
 
   final TaqwaRepository repository;
   final DateTime Function() _clock;
 
   /// Sorgt dafür, dass ein einziger Scan beide Geräte verknüpft.
   final LinkSyncService linkSync;
+
+  /// Ortsunabhängiger Cloud-Kanal für Nudges und Nachrichten.
+  final CloudRelay cloudRelay;
+  final Duration _cloudInterval;
+
+  Timer? _cloudTimer;
+  bool _cloudBusy = false;
+  CloudState cloudState = CloudState.idle;
+  String? cloudError;
+  DateTime? lastCloudSync;
 
   AppSettings? settings;
   PrayerSchedule? schedule;
@@ -99,6 +116,7 @@ class TaqwaController extends ChangeNotifier {
     reminderText: settings?.outboxReminderText,
     syncHost: linkSync.host,
     syncPort: linkSync.port,
+    cloudKey: settings?.cloudInboxKey,
   );
 
   Future<void> initialize() async {
@@ -111,6 +129,7 @@ class TaqwaController extends ChangeNotifier {
       notifyListeners();
       await _startLinkSync();
       await applyNotificationSchedule();
+      await _startCloudSync();
     } catch (e) {
       error = 'Die lokalen App-Daten konnten nicht geladen werden: $e';
       ready = true;
@@ -166,6 +185,130 @@ class TaqwaController extends ChangeNotifier {
     }
   }
 
+  // ---- Cloud-Synchronisation ----------------------------------------
+
+  /// Startet den regelmäßigen Abruf aus dem eigenen Cloud-Postfach.
+  Future<void> _startCloudSync() async {
+    final current = settings;
+    if (current == null || !current.cloudEnabled) return;
+    if (current.cloudInboxKey.isEmpty) return;
+    if (_cloudTimer != null) return;
+    await _syncCloud();
+    _cloudTimer = Timer.periodic(_cloudInterval, (_) => _syncCloud());
+  }
+
+  /// Holt neue Nachrichten. Wird auch beim Zurückkehren in die App
+  /// aufgerufen, damit nichts liegen bleibt.
+  Future<void> syncCloudNow() => _syncCloud();
+
+  Future<void> _syncCloud() async {
+    final current = settings;
+    if (current == null || !current.cloudEnabled) return;
+    if (current.cloudInboxKey.isEmpty) return;
+    if (_cloudBusy) return;
+    _cloudBusy = true;
+    try {
+      final result = await cloudRelay.fetch(
+        inboxKey: current.cloudInboxKey,
+        cursor: current.cloudCursor,
+      );
+      final cursor = result.cursor;
+      if (cursor != null && cursor != current.cloudCursor) {
+        await repository.updateSettings(cloudCursor: cursor);
+        settings = await repository.loadSettings();
+      }
+      for (final envelope in result.envelopes) {
+        await _handleCloudEnvelope(envelope);
+      }
+      cloudState = CloudState.online;
+      cloudError = null;
+      lastCloudSync = now;
+    } catch (error) {
+      cloudState = CloudState.offline;
+      cloudError =
+          'Cloud gerade nicht erreichbar – Nachrichten gehen raus, '
+          'sobald wieder Netz da ist.';
+      debugPrint('Cloud-Sync fehlgeschlagen: $error');
+    } finally {
+      _cloudBusy = false;
+      notifyListeners();
+    }
+  }
+
+  /// Verarbeitet eine Nachricht aus dem Cloud-Kanal.
+  Future<void> _handleCloudEnvelope(CloudEnvelope envelope) async {
+    final me = settings?.profileId ?? '';
+    if (envelope.fromCode.isEmpty || envelope.fromCode == me) return;
+
+    // Kopplung: Das andere Gerät hat unseren QR-Code gescannt.
+    if (envelope.type == 'hello') {
+      final snapshot = envelope.snapshot;
+      if (snapshot == null) return;
+      await repository.savePartnerSnapshot(snapshot);
+      partners = await repository.partners();
+      partnerMessages = {
+        for (final partner in partners)
+          partner.code: await repository.familyMessages(partner.code),
+      };
+      notifyListeners();
+      // Antwort senden, damit auch die Gegenseite unseren Schlüssel kennt.
+      await publishStatus(toCode: envelope.fromCode);
+      return;
+    }
+
+    Partner? partner;
+    for (final item in partners) {
+      if (item.code == envelope.fromCode) partner = item;
+    }
+    // Nur bereits gekoppelte Geräte dürfen Nachrichten schicken.
+    if (partner == null) return;
+
+    if (envelope.type == 'status') {
+      final snapshot = envelope.snapshot;
+      if (snapshot == null) return;
+      await repository.savePartnerSnapshot(snapshot);
+      partners = await repository.partners();
+      notifyListeners();
+      return;
+    }
+
+    final ping = envelope.toPing();
+    if (ping != null) await _handleIncomingPing(ping);
+  }
+
+  /// Schickt den eigenen Tagesstand an gekoppelte Geräte, damit deren
+  /// Familienansicht aktuell bleibt – egal wo man gerade ist.
+  Future<void> publishStatus({String? toCode}) async {
+    final current = settings;
+    if (current == null || !current.cloudEnabled) return;
+    final snapshot = profileSnapshot;
+    for (final partner in partners) {
+      if (toCode != null && partner.code != toCode) continue;
+      final key = partner.cloudKey;
+      if (key == null || key.isEmpty) continue;
+      await cloudRelay.publish(
+        inboxKey: key,
+        envelope: CloudEnvelope.status(snapshot),
+      );
+    }
+  }
+
+  /// Cloud-Synchronisation ein- oder ausschalten.
+  Future<void> setCloudEnabled(bool value) async {
+    await repository.updateSettings(cloudEnabled: value);
+    settings = await repository.loadSettings();
+    if (value) {
+      await _startCloudSync();
+      await _syncCloud();
+    } else {
+      _cloudTimer?.cancel();
+      _cloudTimer = null;
+      cloudState = CloudState.idle;
+      cloudError = null;
+    }
+    notifyListeners();
+  }
+
   /// Liest die eigene IP neu ein, z. B. nach einem WLAN-Wechsel.
   Future<void> refreshLinkSync() async {
     final changed = await linkSync.refreshHost();
@@ -210,6 +353,7 @@ class TaqwaController extends ChangeNotifier {
     await refresh();
     _checkGold();
     notifyListeners();
+    unawaited(publishStatus());
     return award;
   }
 
@@ -221,6 +365,7 @@ class TaqwaController extends ChangeNotifier {
     await refresh();
     _checkGold();
     notifyListeners();
+    unawaited(publishStatus());
     return award;
   }
 
@@ -246,6 +391,7 @@ class TaqwaController extends ChangeNotifier {
     settings = await repository.loadSettings();
     await refresh();
     notifyListeners();
+    unawaited(publishStatus());
     return award;
   }
 
@@ -372,6 +518,18 @@ class TaqwaController extends ChangeNotifier {
     await repository.savePartnerSnapshot(snapshot);
     partners = await repository.partners();
     notifyListeners();
+
+    // Cloud-Kopplung: Der Schlüssel steckt im QR-Code. Wir melden uns sofort
+    // im Postfach des anderen Geräts – das funktioniert auch dann, wenn beide
+    // gerade nicht im selben WLAN sind.
+    final remoteKey = snapshot.cloudKey?.trim() ?? '';
+    final cloudSent = remoteKey.isEmpty
+        ? false
+        : await cloudRelay.publish(
+            inboxKey: remoteKey,
+            envelope: CloudEnvelope.hello(profileSnapshot),
+          );
+
     if (snapshot.reminderAt != null) {
       await NotificationService.showNow(
         title:
@@ -386,14 +544,18 @@ class TaqwaController extends ChangeNotifier {
     if (mutual) {
       partners = await repository.partners();
       notifyListeners();
+    } else if (cloudSent) {
+      // Über die Cloud ist die Kopplung trotzdem angekommen.
+      cloudState = CloudState.online;
+      notifyListeners();
     }
     return LinkResult(
       snapshot: snapshot,
-      mutual: mutual,
-      reason: mutual
+      mutual: mutual || cloudSent,
+      reason: mutual || cloudSent
           ? null
-          : 'Die Gegenseite war nicht im selben WLAN erreichbar. '
-                'Zeige ihr jetzt deinen QR-Code, damit die Kopplung auch dort ankommt.',
+          : 'Die Gegenseite war nicht erreichbar. Zeige ihr jetzt deinen '
+                'QR-Code, damit die Kopplung auch dort ankommt.',
     );
   }
 
@@ -466,7 +628,7 @@ class TaqwaController extends ChangeNotifier {
       prayer: prayer,
       sentAt: now.toIso8601String(),
     );
-    if (!_deliver(partner, ping)) return false;
+    if (!await _deliver(partner, ping)) return false;
     await _rememberMessage(partner, ping);
     return true;
   }
@@ -483,12 +645,23 @@ class TaqwaController extends ChangeNotifier {
       text: clean,
       sentAt: now.toIso8601String(),
     );
-    if (!_deliver(partner, ping)) return false;
+    if (!await _deliver(partner, ping)) return false;
     await _rememberMessage(partner, ping);
     return true;
   }
 
-  bool _deliver(Partner partner, FamilyPing ping) {
+  /// Stellt eine Nachricht zu. Zuerst über den Cloud-Kanal – der funktioniert
+  /// von überall. Nur wenn das andere Gerät keinen Cloud-Schlüssel hat (alte
+  /// Kopplung), wird die direkte WLAN-Verbindung versucht.
+  Future<bool> _deliver(Partner partner, FamilyPing ping) async {
+    final key = partner.cloudKey?.trim() ?? '';
+    if (key.isNotEmpty) {
+      final sent = await cloudRelay.publish(
+        inboxKey: key,
+        envelope: CloudEnvelope.ping(ping),
+      );
+      if (sent) return true;
+    }
     final host = partner.syncHost?.trim() ?? '';
     final port = partner.syncPort ?? 0;
     if (host.isEmpty || port <= 0) return false;
@@ -629,7 +802,10 @@ class TaqwaController extends ChangeNotifier {
 
   @override
   void dispose() {
+    _cloudTimer?.cancel();
+    _cloudTimer = null;
     linkSync.stop();
+    cloudRelay.close();
     lastReadNotifier.dispose();
     super.dispose();
   }

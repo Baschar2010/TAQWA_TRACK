@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:taqwa_track/cloud_sync.dart';
 import 'package:taqwa_track/domain.dart';
 
 void main() {
@@ -178,5 +179,88 @@ void main() {
     expect(incoming.time, DateTime(2026, 10, 30, 12));
     expect(outgoing.incoming, isFalse);
     expect(outgoing.prayerValue, isNull);
+  });
+
+  group('Cloud-Kanal', () {
+    test('CloudEnvelope überträgt Nachricht und Status verlustfrei', () {
+      const ping = FamilyPing(
+        fromCode: 'AAAAAA',
+        fromName: 'Aisha Müller',
+        kind: FamilyPingKind.nudge,
+        prayer: Prayer.fajr,
+        sentAt: '2026-10-30T12:00:00.000',
+      );
+      final parsedPing = CloudEnvelope.tryParse(
+        CloudEnvelope.ping(ping).encode(),
+      );
+      expect(parsedPing, isNotNull);
+      expect(parsedPing!.type, 'ping');
+      expect(parsedPing.fromName, 'Aisha Müller');
+      final back = parsedPing.toPing();
+      expect(back, isNotNull);
+      expect(back!.prayer, Prayer.fajr);
+      expect(back.displayText, 'Bitte vergesse Fajr nicht');
+
+      const snapshot = ProfileSnapshot(
+        code: 'BBBBBB',
+        name: 'Bilal',
+        prayerMask: '11000',
+        habitsDone: 2,
+        habitsTotal: 3,
+        streak: 5,
+        day: '2026-10-30',
+        cloudKey: 'geheimerSchluessel0123456789abcdef',
+      );
+      final parsedStatus = CloudEnvelope.tryParse(
+        CloudEnvelope.status(snapshot).encode(),
+      );
+      expect(parsedStatus, isNotNull);
+      expect(parsedStatus!.type, 'status');
+      expect(parsedStatus.snapshot!.code, 'BBBBBB');
+      expect(parsedStatus.snapshot!.prayerMask, '11000');
+      expect(parsedStatus.snapshot!.cloudKey, snapshot.cloudKey);
+    });
+
+    test('CloudEnvelope ignoriert kaputte Inhalte', () {
+      for (final raw in [
+        '',
+        'kein json',
+        '[]',
+        '{"t":"ping"}',
+        '{"t":"unbekannt","from":"AAAAAA"}',
+        '{"t":"status","from":"AAAAAA"}',
+        '{"t":"ping","from":"AAAAAA","snap":"kein base64!"}',
+      ]) {
+        expect(CloudEnvelope.tryParse(raw), isNull, reason: raw);
+      }
+    });
+
+    test(
+      'cloudTopicFor ist stabil, lang genug und je Schlüssel verschieden',
+      () {
+        const key = 'abcdefghijklmnopqrstuvwxyz012345';
+        final topic = cloudTopicFor(key);
+        expect(topic, isNotNull);
+        expect(topic, startsWith('taqwa_'));
+        expect(topic!.length, greaterThanOrEqualTo(38));
+        expect(cloudTopicFor(key), topic);
+        expect(cloudTopicFor('$key-other'), isNot(topic));
+        // Der Schlüssel selbst darf nicht im Kanalnamen stehen.
+        expect(topic, isNot(contains(key)));
+        expect(cloudTopicFor('kurz'), isNull);
+      },
+    );
+
+    test(
+      'generateCloudKey erzeugt eindeutige, ausreichend lange Schlüssel',
+      () {
+        final keys = {for (var i = 0; i < 50; i++) generateCloudKey()};
+        expect(keys, hasLength(50));
+        for (final key in keys) {
+          expect(key.length, greaterThanOrEqualTo(30));
+          expect(cloudTopicFor(key), isNotNull);
+        }
+      },
+    );
   });
 }

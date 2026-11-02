@@ -36,6 +36,7 @@ class Partner {
     this.reminderText,
     this.syncHost,
     this.syncPort,
+    this.cloudKey,
   });
   final int id;
   final String code;
@@ -58,8 +59,15 @@ class Partner {
   final String? syncHost;
   final int? syncPort;
 
+  /// Cloud-Postfachschlüssel des gekoppelten Geräts. Damit funktioniert der
+  /// Austausch ortsunabhängig – auch ohne gemeinsames WLAN.
+  final String? cloudKey;
+
+  bool get canUseCloud => (cloudKey?.trim().isNotEmpty ?? false);
+
   bool get canReceiveDirectly =>
-      (syncHost?.trim().isNotEmpty ?? false) && (syncPort ?? 0) > 0;
+      canUseCloud ||
+      ((syncHost?.trim().isNotEmpty ?? false) && (syncPort ?? 0) > 0);
 
   String get displayName {
     final local = alias?.trim() ?? '';
@@ -90,7 +98,7 @@ class TaqwaRepository {
     _db = await _factory.openDatabase(
       path,
       options: OpenDatabaseOptions(
-        version: 7,
+        version: 8,
         onCreate: _createSchema,
         onUpgrade: _upgradeSchema,
       ),
@@ -118,6 +126,9 @@ class TaqwaRepository {
       adhan_enabled INTEGER NOT NULL DEFAULT 0,
       adhan_minutes_before INTEGER NOT NULL DEFAULT 0,
       family_alerts INTEGER NOT NULL DEFAULT 1,
+      cloud_enabled INTEGER NOT NULL DEFAULT 1,
+      cloud_inbox_key TEXT NOT NULL DEFAULT '',
+      cloud_cursor TEXT,
       tasbih_count INTEGER NOT NULL DEFAULT 0,
       tasbih_target INTEGER NOT NULL DEFAULT 33,
       outbox_reminder_at TEXT,
@@ -199,7 +210,8 @@ class TaqwaRepository {
       reminder_at TEXT,
       reminder_text TEXT,
       sync_host TEXT,
-      sync_port INTEGER
+      sync_port INTEGER,
+      cloud_key TEXT
     )''');
     await db.execute('''CREATE TABLE family_messages (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -325,6 +337,16 @@ class TaqwaRepository {
         await db.execute(statement);
       }
     }
+    if (oldVersion < 8) {
+      for (final statement in [
+        'ALTER TABLE settings ADD COLUMN cloud_enabled INTEGER NOT NULL DEFAULT 1',
+        "ALTER TABLE settings ADD COLUMN cloud_inbox_key TEXT NOT NULL DEFAULT ''",
+        'ALTER TABLE settings ADD COLUMN cloud_cursor TEXT',
+        'ALTER TABLE partners ADD COLUMN cloud_key TEXT',
+      ]) {
+        await db.execute(statement);
+      }
+    }
   }
 
   Future<AppSettings> loadSettings() async {
@@ -348,6 +370,9 @@ class TaqwaRepository {
       adhanEnabled: row['adhan_enabled'] == 1,
       adhanMinutesBefore: (row['adhan_minutes_before'] as int?) ?? 0,
       familyAlerts: (row['family_alerts'] as int?) != 0,
+      cloudEnabled: (row['cloud_enabled'] as int?) != 0,
+      cloudInboxKey: (row['cloud_inbox_key'] as String?) ?? '',
+      cloudCursor: row['cloud_cursor'] as String?,
       tasbihCount: (row['tasbih_count'] as int?) ?? 0,
       tasbihTarget: (row['tasbih_target'] as int?) ?? 33,
       outboxReminderAt: row['outbox_reminder_at'] as String?,
@@ -369,6 +394,9 @@ class TaqwaRepository {
     bool? adhanEnabled,
     int? adhanMinutesBefore,
     bool? familyAlerts,
+    bool? cloudEnabled,
+    String? cloudInboxKey,
+    String? cloudCursor,
     int? tasbihCount,
     int? tasbihTarget,
     String? outboxReminderAt,
@@ -399,6 +427,11 @@ class TaqwaRepository {
     if (familyAlerts != null) {
       values['family_alerts'] = familyAlerts ? 1 : 0;
     }
+    if (cloudEnabled != null) {
+      values['cloud_enabled'] = cloudEnabled ? 1 : 0;
+    }
+    if (cloudInboxKey != null) values['cloud_inbox_key'] = cloudInboxKey;
+    if (cloudCursor != null) values['cloud_cursor'] = cloudCursor;
     if (tasbihCount != null) values['tasbih_count'] = tasbihCount;
     if (tasbihTarget != null) values['tasbih_target'] = tasbihTarget;
     if (clearOutbox) {
@@ -425,6 +458,12 @@ class TaqwaRepository {
     if (settings.profileId.isEmpty) {
       final code = generateProfileCode();
       await db.update('settings', {'profile_id': code}, where: 'id = 1');
+      settings = await loadSettings();
+    }
+    // Jede Installation bekommt einmalig ein eigenes Cloud-Postfach.
+    if (settings.cloudInboxKey.isEmpty) {
+      final key = generateCloudKey();
+      await db.update('settings', {'cloud_inbox_key': key}, where: 'id = 1');
       settings = await loadSettings();
     }
     return settings;
@@ -649,6 +688,7 @@ class TaqwaRepository {
                 reminderText: r['reminder_text'] as String?,
                 syncHost: r['sync_host'] as String?,
                 syncPort: r['sync_port'] as int?,
+                cloudKey: r['cloud_key'] as String?,
               ),
             )
             .toList(),
@@ -673,6 +713,9 @@ class TaqwaRepository {
     // WLAN-Daten erzeugt wurde (z. B. manuell eingegebener Code).
     if (snapshot.syncHost != null) values['sync_host'] = snapshot.syncHost;
     if (snapshot.syncPort != null) values['sync_port'] = snapshot.syncPort;
+    // Der Cloud-Schlüssel bleibt erhalten, wenn ein älterer QR-Code ohne
+    // Cloud-Daten erneut gescannt wird.
+    if (snapshot.cloudKey != null) values['cloud_key'] = snapshot.cloudKey;
     final existing = await db.query(
       'partners',
       where: 'code = ?',

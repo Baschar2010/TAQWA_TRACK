@@ -17,6 +17,7 @@ import 'onboarding_screen.dart';
 import 'pairing_screen.dart';
 import 'prayer_qibla_screens.dart';
 import 'quran_screen.dart';
+import 'reward.dart';
 import 'tasbih_screen.dart';
 import 'theme.dart';
 import 'update_dialog.dart';
@@ -599,7 +600,13 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 9),
               NextPrayerPanel(controller: c),
               const SizedBox(height: 10),
-              const SectionTitle('Gebete heute'),
+              Row(
+                children: [
+                  const Expanded(child: SectionTitle('Gebete heute')),
+                  if (c.completedPrayers == Prayer.values.length)
+                    const RewardStar(size: 13),
+                ],
+              ),
               Row(
                 children: [
                   for (var i = 0; i < Prayer.values.length; i++) ...[
@@ -617,7 +624,20 @@ class _HomeScreenState extends State<HomeScreen> {
               Center(
                 child: Text(
                   '${c.completedPrayers}/5 erledigt  ·  ${settings.streak} Tage Streak',
-                  style: TextStyle(color: TaqwaColors.muted, fontSize: 9),
+                  style: TextStyle(
+                    color: switch (dayTier(
+                      c.completedPrayers,
+                      Prayer.values.length,
+                    )) {
+                      DayTier.complete => rewardGold,
+                      DayTier.partial => TaqwaColors.green,
+                      DayTier.none => TaqwaColors.muted,
+                    },
+                    fontSize: 9,
+                    fontWeight: c.completedPrayers == Prayer.values.length
+                        ? FontWeight.w700
+                        : FontWeight.w400,
+                  ),
                 ),
               ),
             ],
@@ -967,69 +987,112 @@ class _PrayerTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final done = controller.prayers[prayer] ?? false;
+    final allDone = controller.completedPrayers == Prayer.values.length;
+    final tier = allDone
+        ? DayTier.complete
+        : (done ? DayTier.partial : DayTier.none);
+    final accent = tierColor(tier);
     final time = controller.schedule!.times[prayer]!;
     return Semantics(
       button: true,
       label: '${prayerNames[prayer]}, ${done ? 'erledigt' : 'offen'}',
-      child: InkWell(
-        key: ValueKey('prayer-${prayer.name}'),
-        borderRadius: BorderRadius.circular(9),
-        onTap: () async {
-          HapticFeedback.selectionClick();
-          final award = await controller.togglePrayer(prayer);
-          if (context.mounted && award.xpAdded > 0) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('+${award.xpAdded} XP gutgeschrieben'),
-                duration: const Duration(seconds: 1),
-              ),
-            );
-          }
-        },
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 220),
-          padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 2),
-          decoration: BoxDecoration(
-            color: done ? TaqwaColors.goldBorder : TaqwaColors.panel,
-            border: Border.all(
-              color: done ? TaqwaColors.gold : TaqwaColors.border,
-            ),
-            borderRadius: BorderRadius.circular(9),
-          ),
-          child: Column(
-            children: [
-              Text(
-                prayerNames[prayer]!,
-                style: const TextStyle(
-                  fontSize: 8,
-                  fontWeight: FontWeight.w700,
+      child: GoldFlash(
+        active: allDone,
+        borderRadius: 9,
+        child: InkWell(
+          key: ValueKey('prayer-${prayer.name}'),
+          borderRadius: BorderRadius.circular(9),
+          onTap: () async {
+            HapticFeedback.selectionClick();
+            final award = await controller.togglePrayer(prayer);
+            if (context.mounted && award.xpAdded > 0) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text('+${award.xpAdded} XP gutgeschrieben'),
+                  duration: const Duration(seconds: 1),
                 ),
+              );
+            }
+          },
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 220),
+            padding: const EdgeInsets.symmetric(vertical: 7, horizontal: 2),
+            decoration: BoxDecoration(
+              color: tierSurface(tier),
+              border: Border.all(
+                color: tier == DayTier.none ? TaqwaColors.border : accent,
+                width: allDone ? 1.6 : 1,
               ),
-              const SizedBox(height: 4),
-              Text(
-                formatClock(time),
-                style: TextStyle(color: TaqwaColors.muted, fontSize: 8),
-              ),
-              const SizedBox(height: 5),
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 180),
-                width: 17,
-                height: 17,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: done ? TaqwaColors.gold : Colors.transparent,
-                  border: Border.all(
-                    color: done ? TaqwaColors.gold : TaqwaColors.mutedStrong,
+              borderRadius: BorderRadius.circular(9),
+              // Vollständig: deutliches Gold-Leuchten. Teilweise: sanftes
+              // grünes Signal, dass heute schon etwas geschafft ist.
+              boxShadow: allDone
+                  ? [
+                      BoxShadow(
+                        color: rewardGold.withValues(alpha: 0.40),
+                        blurRadius: 12,
+                        spreadRadius: 1,
+                      ),
+                    ]
+                  : (tier == DayTier.partial
+                        ? [
+                            BoxShadow(
+                              color: TaqwaColors.green.withValues(alpha: 0.22),
+                              blurRadius: 6,
+                            ),
+                          ]
+                        : null),
+            ),
+            child: Column(
+              children: [
+                Text(
+                  prayerNames[prayer]!,
+                  style: const TextStyle(
+                    fontSize: 8,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
-                child: AnimatedScale(
-                  scale: done ? 1 : 0,
-                  duration: const Duration(milliseconds: 240),
-                  curve: Curves.easeOutBack,
-                  child: Icon(Icons.check, size: 12, color: TaqwaColors.onGold),
+                const SizedBox(height: 4),
+                Text(
+                  formatClock(time),
+                  style: TextStyle(color: TaqwaColors.muted, fontSize: 8),
                 ),
-              ),
-            ],
+                const SizedBox(height: 5),
+                AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  width: 17,
+                  height: 17,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: done ? accent : Colors.transparent,
+                    border: Border.all(
+                      color: done ? accent : TaqwaColors.mutedStrong,
+                    ),
+                    boxShadow: done
+                        ? [
+                            BoxShadow(
+                              color: accent.withValues(
+                                alpha: allDone ? 0.70 : 0.30,
+                              ),
+                              blurRadius: allDone ? 10 : 5,
+                              spreadRadius: allDone ? 1 : 0,
+                            ),
+                          ]
+                        : null,
+                  ),
+                  child: AnimatedScale(
+                    scale: done ? 1 : 0,
+                    duration: const Duration(milliseconds: 240),
+                    curve: Curves.easeOutBack,
+                    child: Icon(
+                      Icons.check,
+                      size: 12,
+                      color: allDone ? TaqwaColors.onGold : Colors.white,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -1544,8 +1607,10 @@ class _FamilyScreenState extends State<FamilyScreen> {
               ),
               SizedBox(height: 5),
               Text(
-                'Einmal scannen – danach seht ihr eure Gebete, Standard-Habits '
-                'und euren Streak gegenseitig. Ohne Konto, ohne Server.',
+                'Einmal scannen - danach seht ihr eure Gebete, Standard-Habits '
+                'und euren Streak gegenseitig. Der Austausch läuft über einen '
+                'kostenlosen Cloud-Kanal: WLAN, mobile Daten oder Ausland - '
+                'ohne Konto und ohne Serverkosten.',
                 style: TextStyle(
                   color: TaqwaColors.muted,
                   fontSize: 9,
@@ -2039,6 +2104,25 @@ class SettingsScreen extends StatelessWidget {
                         style: TextStyle(fontSize: 9),
                       ),
                       onChanged: controller.setFamilyAlerts,
+                    ),
+                    const SizedBox(height: 4),
+                    Divider(height: 1, color: TaqwaColors.border),
+                    const SizedBox(height: 4),
+                    SwitchListTile.adaptive(
+                      key: const ValueKey('settings-cloud-sync'),
+                      contentPadding: EdgeInsets.zero,
+                      value: settings.cloudEnabled,
+                      activeThumbColor: TaqwaColors.gold,
+                      title: const Text(
+                        'Cloud-Synchronisation',
+                        style: TextStyle(fontSize: 11),
+                      ),
+                      subtitle: const Text(
+                        'Nudges und Nachrichten von überall – kostenlos, '
+                        'auch über mobile Daten',
+                        style: TextStyle(fontSize: 9),
+                      ),
+                      onChanged: controller.setCloudEnabled,
                     ),
                     const SizedBox(height: 4),
                     Text(

@@ -1,13 +1,14 @@
 name: taqwa_track
 description: Offline-first prayer, habit, and family tracker.
 publish_to: none
-version: 1.7.0+12
+version: 1.8.0+13
 
 environment:
   sdk: '>=3.9.0 <4.0.0'
 
 dependencies:
   adhan: ^2.0.0+1
+  crypto: ^3.0.6
   flutter:
     sdk: flutter
   flutter_local_notifications: ^22.3.3
@@ -24,6 +25,7 @@ dependencies:
   sqflite: ^2.4.5
   timezone: ^0.11.2
   url_launcher: ^6.3.3
+  workmanager: ^0.10.10
 
 dev_dependencies:
   flutter_lints: ^6.0.0

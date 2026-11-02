@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:adhan/adhan.dart';
@@ -89,6 +90,9 @@ class AppSettings {
     this.adhanEnabled = false,
     this.adhanMinutesBefore = 0,
     this.familyAlerts = true,
+    this.cloudEnabled = true,
+    this.cloudInboxKey = '',
+    this.cloudCursor,
     this.tasbihCount = 0,
     this.tasbihTarget = 33,
     this.outboxReminderAt,
@@ -127,6 +131,17 @@ class AppSettings {
   /// anzeigen. Auch bei `false` bleiben die Nachrichten in der App sichtbar.
   final bool familyAlerts;
 
+  /// Ortsunabhängige Synchronisation über den kostenlosen Cloud-Kanal.
+  final bool cloudEnabled;
+
+  /// Geheimer Postfach-Schlüssel dieses Geräts. Er steckt im eigenen
+  /// QR-Code und wird beim Koppeln an das andere Gerät übertragen.
+  final String cloudInboxKey;
+
+  /// Kennung der zuletzt gesehenen Cloud-Nachricht. Verhindert, dass nach
+  /// einem Neustart alte Nachrichten erneut ankommen.
+  final String? cloudCursor;
+
   final int tasbihCount;
   final int tasbihTarget;
 
@@ -156,6 +171,9 @@ class AppSettings {
     bool? adhanEnabled,
     int? adhanMinutesBefore,
     bool? familyAlerts,
+    bool? cloudEnabled,
+    String? cloudInboxKey,
+    String? cloudCursor,
     int? tasbihCount,
     int? tasbihTarget,
     String? outboxReminderAt,
@@ -180,6 +198,9 @@ class AppSettings {
     adhanEnabled: adhanEnabled ?? this.adhanEnabled,
     adhanMinutesBefore: adhanMinutesBefore ?? this.adhanMinutesBefore,
     familyAlerts: familyAlerts ?? this.familyAlerts,
+    cloudEnabled: cloudEnabled ?? this.cloudEnabled,
+    cloudInboxKey: cloudInboxKey ?? this.cloudInboxKey,
+    cloudCursor: cloudCursor ?? this.cloudCursor,
     tasbihCount: tasbihCount ?? this.tasbihCount,
     tasbihTarget: tasbihTarget ?? this.tasbihTarget,
     outboxReminderAt: clearOutbox
@@ -294,6 +315,15 @@ String generateProfileCode([math.Random? random]) {
   ).join();
 }
 
+/// Erzeugt einen geheimen Cloud-Postfachschlüssel (192 Bit).
+///
+/// Der Schlüssel wird nie geraten, sondern nur per QR-Code übertragen.
+String generateCloudKey([math.Random? random]) {
+  final rnd = random ?? math.Random.secure();
+  final bytes = List<int>.generate(24, (_) => rnd.nextInt(256));
+  return base64UrlEncode(bytes).replaceAll('=', '');
+}
+
 /// Inhalt des persönlichen QR-Codes.
 ///
 /// Der Code enthält neben der Kennung einen Schnappschuss des heutigen
@@ -312,6 +342,7 @@ class ProfileSnapshot {
     this.reminderText,
     this.syncHost,
     this.syncPort,
+    this.cloudKey,
   });
 
   static const prefix = 'TT2';
@@ -333,6 +364,10 @@ class ProfileSnapshot {
   final String? syncHost;
   final int? syncPort;
 
+  /// Geheimer Cloud-Postfachschlüssel des anderen Geräts. Damit lassen sich
+  /// Erinnerungen und Nachrichten von überall zustellen – nicht nur im WLAN.
+  final String? cloudKey;
+
   List<Prayer> get prayers => [
     for (var i = 0; i < Prayer.values.length; i++)
       if (i < prayerMask.length && prayerMask[i] == '1') Prayer.values[i],
@@ -352,6 +387,7 @@ class ProfileSnapshot {
     reminderText: reminderText,
     syncHost: host ?? syncHost,
     syncPort: port ?? syncPort,
+    cloudKey: cloudKey,
   );
 
   String encode() => [
@@ -367,6 +403,7 @@ class ProfileSnapshot {
     reminderText == null ? '' : Uri.encodeComponent(reminderText!),
     syncHost ?? '',
     syncPort == null ? '' : '$syncPort',
+    cloudKey ?? '',
   ].join('|');
 
   /// Liest einen gescannten QR-Inhalt. Gibt null zurück, wenn der Inhalt
@@ -405,6 +442,9 @@ class ProfileSnapshot {
             ? parts[10].trim()
             : null,
         syncPort: port != null && port > 0 && port <= 65535 ? port : null,
+        cloudKey: parts.length > 12 && parts[12].isNotEmpty
+            ? parts[12].trim()
+            : null,
       );
     } catch (_) {
       return null;

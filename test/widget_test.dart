@@ -19,6 +19,7 @@ import 'package:taqwa_track/link_sync.dart';
 import 'package:taqwa_track/main.dart';
 import 'package:taqwa_track/onboarding_screen.dart';
 import 'package:taqwa_track/quran_screen.dart';
+import 'package:taqwa_track/reward.dart';
 import 'package:taqwa_track/screens.dart';
 import 'package:taqwa_track/tasbih_screen.dart';
 import 'package:taqwa_track/theme.dart';
@@ -264,6 +265,9 @@ class _FakeRepository extends TaqwaRepository {
     bool? adhanEnabled,
     int? adhanMinutesBefore,
     bool? familyAlerts,
+    bool? cloudEnabled,
+    String? cloudInboxKey,
+    String? cloudCursor,
     int? tasbihCount,
     int? tasbihTarget,
     String? outboxReminderAt,
@@ -284,6 +288,9 @@ class _FakeRepository extends TaqwaRepository {
       adhanEnabled: adhanEnabled,
       adhanMinutesBefore: adhanMinutesBefore,
       familyAlerts: familyAlerts,
+      cloudEnabled: cloudEnabled,
+      cloudInboxKey: cloudInboxKey,
+      cloudCursor: cloudCursor,
       tasbihCount: tasbihCount,
       tasbihTarget: tasbihTarget,
       outboxReminderAt: outboxReminderAt,
@@ -372,15 +379,21 @@ void main() {
     await tester.pump(const Duration(milliseconds: 250));
     expect(controller.settings!.xp, 10);
     expect(controller.prayers[Prayer.fajr], isTrue);
+    // Einzelnes Gebet: grünes Signal, noch kein Gold.
+    expect(borderColorOf(tester, 'prayer-fajr'), TaqwaColors.green);
+    expect(find.byType(RewardStar), findsNothing);
 
     for (final prayer in Prayer.values.skip(1)) {
       await controller.togglePrayerToday(prayer);
     }
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 200));
+    await tester.pump(const Duration(milliseconds: 300));
     expect(controller.allPrayersTodayDone, isTrue);
     expect(controller.goldCelebrationPending, isTrue);
     expect(find.text('GOLD'), findsOneWidget);
+    // Alle 5 Gebete: prominentes Gold plus Stern-Badge.
+    expect(borderColorOf(tester, 'prayer-fajr'), rewardGold);
+    expect(find.byType(RewardStar), findsWidgets);
 
     await tester.pump(const Duration(milliseconds: 2600));
     await tester.pump();
@@ -543,7 +556,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
     expect(
-      find.textContaining('Direkt senden war gerade nicht möglich'),
+      find.textContaining('Senden war gerade nicht möglich'),
       findsOneWidget,
     );
 
@@ -587,6 +600,8 @@ void main() {
     await tester.pump(const Duration(milliseconds: 300));
     expect(controller.todayPrayers[Prayer.fajr], isTrue);
     expect(find.text('1/5'), findsWidgets);
+    expect(borderColorOf(tester, 'habit-fajr'), TaqwaColors.green);
+    expect(find.byType(RewardStar), findsNothing);
 
     for (final prayer in Prayer.values.skip(1)) {
       await controller.togglePrayerToday(prayer);
@@ -596,6 +611,8 @@ void main() {
     expect(controller.allPrayersTodayDone, isTrue);
     expect(find.text('5/5'), findsWidgets);
     expect(find.textContaining('MashaAllah'), findsOneWidget);
+    expect(borderColorOf(tester, 'habit-fajr'), rewardGold);
+    expect(find.byType(RewardStar), findsWidgets);
   });
 
   testWidgets('Tasbih zählt Dhikr und lässt sich zurücksetzen', (tester) async {
@@ -1219,4 +1236,18 @@ Future<void> tapNav(WidgetTester tester, String label) async {
 Future<void> settleApp(WidgetTester tester) async {
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 400));
+}
+
+/// Liest die Rahmenfarbe der inneren Karte eines Gebets-/Habit-Eintrags.
+Color borderColorOf(WidgetTester tester, String key) {
+  final container = tester.widget<AnimatedContainer>(
+    find
+        .descendant(
+          of: find.byKey(ValueKey(key)),
+          matching: find.byType(AnimatedContainer),
+        )
+        .first,
+  );
+  final border = (container.decoration! as BoxDecoration).border! as Border;
+  return border.top.color;
 }

@@ -565,6 +565,21 @@ class _PartnerCard extends StatelessWidget {
                     ],
                   ),
                 ),
+                const SizedBox(width: 6),
+                Tooltip(
+                  message: partner.canUseCloud
+                      ? 'Cloud-Sync aktiv – Nachrichten kommen von überall an'
+                      : 'Nur im WLAN erreichbar – QR-Code neu scannen',
+                  child: Icon(
+                    partner.canUseCloud
+                        ? Icons.cloud_done_outlined
+                        : Icons.wifi_tethering_error_outlined,
+                    size: 13,
+                    color: partner.canUseCloud
+                        ? TaqwaColors.green
+                        : TaqwaColors.muted,
+                  ),
+                ),
                 PopupMenuButton<String>(
                   tooltip: 'Optionen',
                   color: TaqwaColors.card,
@@ -869,8 +884,9 @@ class _PartnerCard extends StatelessWidget {
           sent
               ? '${prayerNames[prayer]}-Erinnerung ist bei '
                     '${partner.displayName} angekommen.'
-              : 'Direkt senden war gerade nicht möglich. Seid beide im '
-                    'selben WLAN und scannt einmal den QR-Code neu.',
+              : 'Senden war gerade nicht möglich – prüfe deine '
+                    'Internetverbindung und scannt zur Sicherheit einmal den '
+                    'QR-Code neu.',
         ),
         duration: const Duration(seconds: 3),
       ),
@@ -890,8 +906,9 @@ class _PartnerCard extends StatelessWidget {
         content: Text(
           sent
               ? 'Nachricht an ${partner.displayName} gesendet.'
-              : 'Die Nachricht konnte nicht zugestellt werden. Seid beide im '
-                    'selben WLAN und scannt einmal den QR-Code neu.',
+              : 'Die Nachricht konnte nicht zugestellt werden – prüfe deine '
+                    'Internetverbindung und scannt zur Sicherheit einmal den '
+                    'QR-Code neu.',
         ),
         duration: const Duration(seconds: 3),
       ),

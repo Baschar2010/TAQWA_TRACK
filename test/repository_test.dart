@@ -196,5 +196,59 @@ void main() {
         await repo.close();
       },
     );
+
+    test('jede Installation bekommt ein stabiles Cloud-Postfach', () async {
+      final repo = memoryRepository();
+      final first = await repo.ensureProfile();
+      expect(first.cloudInboxKey, isNotEmpty);
+      expect(first.cloudEnabled, isTrue);
+      // Ein zweiter Aufruf darf den Schlüssel nicht neu erzeugen.
+      final second = await repo.ensureProfile();
+      expect(second.cloudInboxKey, first.cloudInboxKey);
+
+      await repo.updateSettings(cloudCursor: 'ab12cd34');
+      expect((await repo.loadSettings()).cloudCursor, 'ab12cd34');
+
+      await repo.updateSettings(cloudEnabled: false);
+      expect((await repo.loadSettings()).cloudEnabled, isFalse);
+      await repo.close();
+    });
+
+    test('Cloud-Schlüssel des Partners bleibt erhalten', () async {
+      final repo = memoryRepository();
+      const cloudKey = 'geheimerCloudSchluessel0123456789ab';
+      final partner = await repo.savePartnerSnapshot(
+        const ProfileSnapshot(
+          code: 'K7QF2M',
+          name: 'Aisha',
+          prayerMask: '10000',
+          habitsDone: 1,
+          habitsTotal: 3,
+          streak: 4,
+          day: '2026-10-30',
+          cloudKey: cloudKey,
+        ),
+      );
+      expect(partner.cloudKey, cloudKey);
+      expect(partner.canUseCloud, isTrue);
+      expect(partner.canReceiveDirectly, isTrue);
+
+      // Ein alter QR-Code ohne Cloud-Daten darf den Schlüssel nicht löschen.
+      await repo.savePartnerSnapshot(
+        const ProfileSnapshot(
+          code: 'K7QF2M',
+          name: 'Aisha',
+          prayerMask: '11000',
+          habitsDone: 2,
+          habitsTotal: 3,
+          streak: 5,
+          day: '2026-10-31',
+        ),
+      );
+      final refreshed = (await repo.partners()).single;
+      expect(refreshed.cloudKey, cloudKey);
+      expect(refreshed.prayerMask, '11000');
+      await repo.close();
+    });
   });
 }

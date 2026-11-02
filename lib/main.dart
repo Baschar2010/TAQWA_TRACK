@@ -4,6 +4,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 
 import 'app_controller.dart';
 import 'app_shortcuts.dart';
+import 'background_sync.dart';
 import 'data/taqwa_repository.dart';
 import 'language.dart';
 import 'notifications.dart';
@@ -19,6 +20,7 @@ Future<void> main() async {
   final controller = TaqwaController(TaqwaRepository());
   await controller.initialize();
   await NotificationService.initialize();
+  await setupBackgroundSync();
   runApp(
     TaqwaTrackApp(
       controller: controller,
@@ -100,6 +102,9 @@ class _TaqwaTrackAppState extends State<TaqwaTrackApp>
     // dann mit der neuen Adresse erzeugt werden.
     if (state == AppLifecycleState.resumed) {
       widget.controller.refreshLinkSync();
+      // Beim Zurückkehren sofort das Cloud-Postfach leeren, damit
+      // Nachrichten nicht erst beim nächsten Intervall ankommen.
+      widget.controller.syncCloudNow();
     }
   }
 

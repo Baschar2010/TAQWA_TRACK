@@ -9,6 +9,7 @@ import 'app_controller.dart';
 import 'domain.dart';
 import 'hadith_screen.dart';
 import 'language.dart';
+import 'reward.dart';
 import 'screens.dart';
 import 'theme.dart';
 
@@ -233,138 +234,161 @@ class _DailyHabitCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final done = controller.completedPrayersToday;
     final total = Prayer.values.length;
-    final allDone = controller.allPrayersTodayDone;
-    final accent = allDone ? TaqwaColors.gold : TaqwaColors.green;
+    final tier = dayTier(done, total);
+    final allDone = tier == DayTier.complete;
+    // Grün ab dem ersten erledigten Gebet, Gold erst bei 5/5.
+    final accent = tierColor(tier);
     final today = controller.today;
     final weekday = formatDate(context, 'EEEE', today);
     final dateLabel = formatDate(context, 'd. MMMM', today);
 
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: TaqwaColors.card,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: allDone
-              ? TaqwaColors.gold
-              : TaqwaColors.green.withValues(alpha: 0.55),
-          width: 1.2,
+    return GoldFlash(
+      active: allDone,
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: TaqwaColors.card,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: switch (tier) {
+              DayTier.complete => rewardGold,
+              DayTier.partial => TaqwaColors.green.withValues(alpha: 0.65),
+              DayTier.none => TaqwaColors.border,
+            },
+            width: allDone ? 1.8 : 1.2,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: TaqwaColors.shadow,
+              blurRadius: 16,
+              offset: Offset(0, 6),
+            ),
+            if (allDone)
+              BoxShadow(
+                color: rewardGold.withValues(alpha: 0.35),
+                blurRadius: 22,
+                spreadRadius: 2,
+              ),
+          ],
         ),
-        boxShadow: [
-          BoxShadow(
-            color: TaqwaColors.shadow,
-            blurRadius: 16,
-            offset: Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Eyebrow('HEUTE · $weekday'.toUpperCase(), color: accent),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: accent.withValues(alpha: 0.14),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: accent),
-                ),
-                child: Text(
-                  '$done/$total',
-                  style: TextStyle(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Eyebrow(
+                    'HEUTE · $weekday'.toUpperCase(),
                     color: accent,
-                    fontSize: 10,
-                    fontWeight: FontWeight.w800,
                   ),
                 ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Expanded(
-                child: Text(
-                  'Tages-Habits',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
-                    color: allDone ? TaqwaColors.goldLight : TaqwaColors.text,
+                if (allDone) ...[
+                  const RewardStar(size: 15),
+                  const SizedBox(width: 6),
+                ],
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: accent.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: accent),
+                  ),
+                  child: Text(
+                    '$done/$total',
+                    style: TextStyle(
+                      color: accent,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                    ),
                   ),
                 ),
-              ),
-              Text(
-                dateLabel,
-                style: TextStyle(color: TaqwaColors.muted, fontSize: 9),
-              ),
-            ],
-          ),
-          const SizedBox(height: 9),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(6),
-            child: TweenAnimationBuilder<double>(
-              tween: Tween<double>(begin: 0, end: done / total),
-              duration: const Duration(milliseconds: 400),
-              builder: (context, value, _) => LinearProgressIndicator(
-                value: value,
-                minHeight: 7,
-                backgroundColor: TaqwaColors.goldBorder,
-                valueColor: AlwaysStoppedAnimation<Color>(accent),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Expanded(
+                  child: Text(
+                    'Tages-Habits',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: allDone ? rewardGold : TaqwaColors.text,
+                    ),
+                  ),
+                ),
+                Text(
+                  dateLabel,
+                  style: TextStyle(color: TaqwaColors.muted, fontSize: 9),
+                ),
+              ],
+            ),
+            const SizedBox(height: 9),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: TweenAnimationBuilder<double>(
+                tween: Tween<double>(begin: 0, end: done / total),
+                duration: const Duration(milliseconds: 400),
+                builder: (context, value, _) => LinearProgressIndicator(
+                  value: value,
+                  minHeight: 7,
+                  backgroundColor: TaqwaColors.goldBorder,
+                  valueColor: AlwaysStoppedAnimation<Color>(accent),
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 10),
-          for (final prayer in Prayer.values)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 6),
-              child: _HabitPrayerRow(
-                prayer: prayer,
-                time: schedule.times[prayer]!,
-                done: controller.todayPrayers[prayer] ?? false,
-                accent: accent,
-                onTap: () async {
-                  HapticFeedback.selectionClick();
-                  final award = await controller.togglePrayerToday(prayer);
-                  if (context.mounted && award.xpAdded > 0) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('+${award.xpAdded} XP gutgeschrieben'),
-                        duration: const Duration(seconds: 1),
-                      ),
-                    );
-                  }
-                },
-              ),
-            ),
-          const SizedBox(height: 2),
-          Row(
-            children: [
-              Icon(
-                allDone ? Icons.emoji_events : Icons.flag_outlined,
-                size: 13,
-                color: accent,
-              ),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  allDone
-                      ? 'Alle 5 Gebete erledigt – MashaAllah!'
-                      : 'Noch ${total - done} ${total - done == 1 ? 'Gebet' : 'Gebete'} bis zum Tagesziel',
-                  style: TextStyle(
-                    color: accent,
-                    fontSize: 9,
-                    fontWeight: allDone ? FontWeight.w700 : FontWeight.w600,
-                  ),
+            const SizedBox(height: 10),
+            for (final prayer in Prayer.values)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: _HabitPrayerRow(
+                  prayer: prayer,
+                  time: schedule.times[prayer]!,
+                  done: controller.todayPrayers[prayer] ?? false,
+                  accent: accent,
+                  onTap: () async {
+                    HapticFeedback.selectionClick();
+                    final award = await controller.togglePrayerToday(prayer);
+                    if (context.mounted && award.xpAdded > 0) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('+${award.xpAdded} XP gutgeschrieben'),
+                          duration: const Duration(seconds: 1),
+                        ),
+                      );
+                    }
+                  },
                 ),
               ),
-            ],
-          ),
-        ],
+            const SizedBox(height: 2),
+            Row(
+              children: [
+                Icon(
+                  allDone ? Icons.emoji_events : Icons.flag_outlined,
+                  size: 13,
+                  color: accent,
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    allDone
+                        ? 'Alle 5 Gebete erledigt – MashaAllah!'
+                        : 'Noch ${total - done} ${total - done == 1 ? 'Gebet' : 'Gebete'} bis zum Tagesziel',
+                    style: TextStyle(
+                      color: accent,
+                      fontSize: 9,
+                      fontWeight: allDone ? FontWeight.w700 : FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -399,7 +423,21 @@ class _HabitPrayerRow extends StatelessWidget {
         decoration: BoxDecoration(
           color: done ? accent.withValues(alpha: 0.14) : TaqwaColors.panel,
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: done ? accent : TaqwaColors.border),
+          border: Border.all(
+            color: done ? accent : TaqwaColors.border,
+            width: accent == rewardGold ? 1.4 : 1,
+          ),
+          boxShadow: done
+              ? [
+                  BoxShadow(
+                    color: accent.withValues(
+                      alpha: accent == rewardGold ? 0.38 : 0.20,
+                    ),
+                    blurRadius: accent == rewardGold ? 12 : 6,
+                    spreadRadius: accent == rewardGold ? 1 : 0,
+                  ),
+                ]
+              : null,
         ),
         child: Row(
           children: [
@@ -414,9 +452,23 @@ class _HabitPrayerRow extends StatelessWidget {
                   color: done ? accent : TaqwaColors.mutedStrong,
                   width: 1.4,
                 ),
+                boxShadow: done
+                    ? [
+                        BoxShadow(
+                          color: accent.withValues(alpha: 0.45),
+                          blurRadius: 8,
+                        ),
+                      ]
+                    : null,
               ),
               child: done
-                  ? Icon(Icons.check, size: 15, color: TaqwaColors.onGold)
+                  ? Icon(
+                      Icons.check,
+                      size: 15,
+                      color: accent == rewardGold
+                          ? TaqwaColors.onGold
+                          : Colors.white,
+                    )
                   : null,
             ),
             const SizedBox(width: 10),
