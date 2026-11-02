@@ -1,10 +1,10 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'app_info.dart';
 import 'theme.dart';
@@ -39,34 +39,26 @@ class FeedbackEntry {
       );
 }
 
-/// Admin-Konto (lokal gespeichert, Passwort gehasht).
+/// Admin-Konto (lokal gespeichert, ohne Passwort-Zwang).
 class AdminAccount {
   AdminAccount({
     required this.name,
-    required this.passwordHash,
     this.isMain = false,
   });
 
   final String name;
-  final String passwordHash;
   final bool isMain;
 
   Map<String, dynamic> toJson() => {
         'name': name,
-        'passwordHash': passwordHash,
         'isMain': isMain,
       };
 
   factory AdminAccount.fromJson(Map<String, dynamic> json) => AdminAccount(
         name: (json['name'] as String?) ?? '',
-        passwordHash: (json['passwordHash'] as String?) ?? '',
         isMain: json['isMain'] == true,
       );
 }
-
-/// Sichere Passwort-Hashing (SHA-256).
-String hashPassword(String password) =>
-    sha256.convert(utf8.encode(password)).toString();
 
 /// Speicherung der Admin-Konten.
 class AdminStorage {
@@ -104,14 +96,6 @@ class AdminStorage {
         jsonEncode(list.map((a) => a.toJson()).toList()),
       );
     } catch (_) {}
-  }
-
-  static Future<AdminAccount?> find(String name) async {
-    final list = await load();
-    for (final a in list) {
-      if (a.name.toLowerCase() == name.trim().toLowerCase()) return a;
-    }
-    return null;
   }
 
   static Future<void> upsert(AdminAccount account) async {
@@ -177,7 +161,7 @@ class FeedbackStorage {
   }
 }
 
-/// Admin-Dashboard mit Login, Feedback-Liste und Admin-Verwaltung.
+/// Admin-Dashboard (ohne Passwort-Gate, nur versteckter Zugang).
 class AdminFeedbackScreen extends StatefulWidget {
   const AdminFeedbackScreen({super.key});
 
@@ -186,89 +170,13 @@ class AdminFeedbackScreen extends StatefulWidget {
 }
 
 class _AdminFeedbackScreenState extends State<AdminFeedbackScreen> {
-  static const _mainAdminName = 'Baschar';
-
-  bool _unlocked = false;
-  bool _isMainAdmin = false;
-  String _currentUser = '';
-  bool _needsSetup = true;
-  bool _loading = false;
-
-  final TextEditingController _loginName = TextEditingController();
-  final TextEditingController _loginPassword = TextEditingController();
-  final TextEditingController _setupPassword = TextEditingController();
-  final TextEditingController _setupConfirm = TextEditingController();
-
   List<FeedbackEntry> _entries = <FeedbackEntry>[];
+  bool _loading = false;
 
   @override
   void initState() {
     super.initState();
-    _checkSetup();
-  }
-
-  @override
-  void dispose() {
-    _loginName.dispose();
-    _loginPassword.dispose();
-    _setupPassword.dispose();
-    _setupConfirm.dispose();
-    super.dispose();
-  }
-
-  Future<void> _checkSetup() async {
-    final list = await AdminStorage.load();
-    if (!mounted) return;
-    setState(() {
-      _needsSetup = list.isEmpty;
-    });
-  }
-
-  Future<void> _setup() async {
-    if (_setupPassword.text.trim().length < 4) {
-      _snack('Passwort muss mindestens 4 Zeichen haben.');
-      return;
-    }
-    if (_setupPassword.text != _setupConfirm.text) {
-      _snack('Passwörter stimmen nicht überein.');
-      return;
-    }
-    await AdminStorage.upsert(
-      AdminAccount(
-        name: _mainAdminName,
-        passwordHash: hashPassword(_setupPassword.text),
-        isMain: true,
-      ),
-    );
-    if (!mounted) return;
-    setState(() {
-      _needsSetup = false;
-      _unlocked = true;
-      _isMainAdmin = true;
-      _currentUser = _mainAdminName;
-    });
-    await _reload();
-  }
-
-  Future<void> _login() async {
-    final name = _loginName.text.trim();
-    final password = _loginPassword.text;
-    if (name.isEmpty || password.isEmpty) {
-      _snack('Name und Passwort eingeben.');
-      return;
-    }
-    final account = await AdminStorage.find(name);
-    if (account == null || account.passwordHash != hashPassword(password)) {
-      _snack('Ungültige Anmeldedaten.');
-      return;
-    }
-    if (!mounted) return;
-    setState(() {
-      _unlocked = true;
-      _isMainAdmin = account.isMain;
-      _currentUser = account.name;
-    });
-    await _reload();
+    _reload();
   }
 
   Future<void> _reload() async {
@@ -279,11 +187,6 @@ class _AdminFeedbackScreenState extends State<AdminFeedbackScreen> {
       _entries = list;
       _loading = false;
     });
-  }
-
-  void _snack(String text) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
   }
 
   String _summarize() {
@@ -311,131 +214,49 @@ class _AdminFeedbackScreenState extends State<AdminFeedbackScreen> {
   Future<void> _copySummary() async {
     await Clipboard.setData(ClipboardData(text: _summarize()));
     if (!mounted) return;
-    _snack('Zusammenfassung kopiert.');
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Zusammenfassung kopiert.')),
+    );
   }
 
   Future<void> _openAdminManagement() async {
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => AdminManagementScreen(currentUser: _currentUser),
+        builder: (_) => const AdminManagementScreen(),
       ),
     );
   }
 
+  Future<void> _contactDeveloper() async {
+    final uri = Uri.parse(
+      'mailto:alsafdibaschar5@gmail.com?subject=${Uri.encodeComponent('TAQWA TRACK - Passwort/Support')}',
+    );
+    try {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      await Clipboard.setData(
+        const ClipboardData(text: 'alsafdibaschar5@gmail.com'),
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('E-Mail-Adresse kopiert.')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    if (!_unlocked) {
-      return Scaffold(
-        appBar: AppBar(
-          title: const Text('Admin-Feedback', style: TextStyle(fontSize: 15)),
-          centerTitle: true,
-        ),
-        body: StarField(
-          child: SafeArea(
-            child: Center(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
-                child: TaqwaCard(
-                  goldBorder: true,
-                  child: _needsSetup
-                      ? Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Eyebrow('ERSTEINRICHTUNG', color: Colors.amber),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Haupt-Admin „$_mainAdminName“ – Passwort festlegen',
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            TextField(
-                              controller: _setupPassword,
-                              obscureText: true,
-                              decoration: const InputDecoration(
-                                labelText: 'Neues Passwort',
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                            TextField(
-                              controller: _setupConfirm,
-                              obscureText: true,
-                              decoration: const InputDecoration(
-                                labelText: 'Passwort bestätigen',
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            FilledButton(
-                              onPressed: _setup,
-                              style: FilledButton.styleFrom(
-                                backgroundColor: TaqwaColors.gold,
-                                foregroundColor: TaqwaColors.onGold,
-                              ),
-                              child: const Text('Passwort speichern'),
-                            ),
-                          ],
-                        )
-                      : Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Eyebrow('ANMELDUNG', color: TaqwaColors.gold),
-                            const SizedBox(height: 8),
-                            const Text(
-                              'Admin-Login',
-                              style: TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            TextField(
-                              controller: _loginName,
-                              decoration: const InputDecoration(
-                                labelText: 'Admin-Name',
-                              ),
-                            ),
-                            const SizedBox(height: 10),
-                            TextField(
-                              controller: _loginPassword,
-                              obscureText: true,
-                              decoration: const InputDecoration(
-                                labelText: 'Passwort',
-                              ),
-                              onSubmitted: (_) => _login(),
-                            ),
-                            const SizedBox(height: 12),
-                            FilledButton(
-                              onPressed: _login,
-                              style: FilledButton.styleFrom(
-                                backgroundColor: TaqwaColors.gold,
-                                foregroundColor: TaqwaColors.onGold,
-                              ),
-                              child: const Text('Anmelden'),
-                            ),
-                          ],
-                        ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('Admin-Feedback', style: TextStyle(fontSize: 15)),
         centerTitle: true,
         actions: [
-          if (_isMainAdmin)
-            IconButton(
-              tooltip: 'Admins verwalten',
-              onPressed: _openAdminManagement,
-              icon: const Icon(Icons.admin_panel_settings),
-            ),
+          IconButton(
+            tooltip: 'Admins verwalten',
+            onPressed: _openAdminManagement,
+            icon: const Icon(Icons.admin_panel_settings),
+          ),
           IconButton(
             tooltip: 'Neu laden',
             onPressed: _reload,
@@ -451,7 +272,7 @@ class _AdminFeedbackScreenState extends State<AdminFeedbackScreen> {
                   padding: const EdgeInsets.all(14),
                   children: [
                     Eyebrow(
-                      '${_entries.length} FEEDBACK(S) · $_currentUser',
+                      '${_entries.length} FEEDBACK(S)',
                       color: TaqwaColors.gold,
                     ),
                     const SizedBox(height: 8),
@@ -539,6 +360,15 @@ class _AdminFeedbackScreenState extends State<AdminFeedbackScreen> {
                       textAlign: TextAlign.center,
                       style: TextStyle(color: TaqwaColors.muted, fontSize: 8.5),
                     ),
+                    const SizedBox(height: 10),
+                    TextButton.icon(
+                      onPressed: _contactDeveloper,
+                      icon: const Icon(Icons.mail_outline, size: 16),
+                      label: const Text(
+                        'Passwort vergessen? Entwickler kontaktieren',
+                        style: TextStyle(fontSize: 10),
+                      ),
+                    ),
                   ],
                 ),
         ),
@@ -547,11 +377,9 @@ class _AdminFeedbackScreenState extends State<AdminFeedbackScreen> {
   }
 }
 
-/// Verwaltungsseite für Admin-Konten (nur Haupt-Admin).
+/// Verwaltungsseite für Admin-Konten.
 class AdminManagementScreen extends StatefulWidget {
-  const AdminManagementScreen({super.key, required this.currentUser});
-
-  final String currentUser;
+  const AdminManagementScreen({super.key});
 
   @override
   State<AdminManagementScreen> createState() => _AdminManagementScreenState();
@@ -579,25 +407,13 @@ class _AdminManagementScreenState extends State<AdminManagementScreen> {
 
   Future<void> _addAdmin() async {
     final nameCtrl = TextEditingController();
-    final passCtrl = TextEditingController();
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Neuen Admin anlegen'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: nameCtrl,
-              decoration: const InputDecoration(labelText: 'Admin-Name'),
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: passCtrl,
-              obscureText: true,
-              decoration: const InputDecoration(labelText: 'Passwort (min. 4)'),
-            ),
-          ],
+        content: TextField(
+          controller: nameCtrl,
+          decoration: const InputDecoration(labelText: 'Admin-Name'),
         ),
         actions: [
           TextButton(
@@ -613,64 +429,24 @@ class _AdminManagementScreenState extends State<AdminManagementScreen> {
     );
     if (ok != true) return;
     final name = nameCtrl.text.trim();
-    final pass = passCtrl.text;
-    if (name.isEmpty || pass.length < 4) {
-      _snack('Name und Passwort (min. 4) erforderlich.');
+    if (name.isEmpty) {
+      _snack('Name erforderlich.');
       return;
     }
-    if (name.toLowerCase() == 'baschar') {
-      _snack('Haupt-Admin kann nicht neu angelegt werden.');
-      return;
-    }
-    await AdminStorage.upsert(
-      AdminAccount(name: name, passwordHash: hashPassword(pass), isMain: false),
-    );
+    await AdminStorage.upsert(AdminAccount(name: name, isMain: false));
+    // Benachrichtigung an den Entwickler (best-effort).
+    try {
+      final uri = Uri.parse(
+        'mailto:alsafdibaschar5@gmail.com?subject=${Uri.encodeComponent('TAQWA TRACK - Neuer Admin angelegt')}&body=${Uri.encodeComponent('Neuer Admin: $name')}',
+      );
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (_) {}
     await _reload();
-    _snack('Admin „$name“ angelegt.');
-  }
-
-  Future<void> _resetPassword(AdminAccount admin) async {
-    final passCtrl = TextEditingController();
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('Passwort zurücksetzen: ${admin.name}'),
-        content: TextField(
-          controller: passCtrl,
-          obscureText: true,
-          decoration: const InputDecoration(labelText: 'Neues Passwort (min. 4)'),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Abbrechen'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Zurücksetzen'),
-          ),
-        ],
-      ),
-    );
-    if (ok != true) return;
-    if (passCtrl.text.length < 4) {
-      _snack('Passwort muss mindestens 4 Zeichen haben.');
-      return;
-    }
-    await AdminStorage.upsert(
-      AdminAccount(
-        name: admin.name,
-        passwordHash: hashPassword(passCtrl.text),
-        isMain: admin.isMain,
-      ),
-    );
-    await _reload();
-    _snack('Passwort für „${admin.name}“ zurückgesetzt.');
+    _snack('Admin „$name“ angelegt. Entwickler wurde benachrichtigt.');
   }
 
   Future<void> _remove(AdminAccount admin) async {
-    // Haupt-Admin: extra Sicherheitsabfrage (Name bestätigen).
-    if (admin.isMain) {
+    if (admin.name.toLowerCase() == 'baschar') {
       final ctrl = TextEditingController();
       final ok = await showDialog<bool>(
         context: context,
@@ -715,7 +491,7 @@ class _AdminManagementScreenState extends State<AdminManagementScreen> {
           title: Text('Konto „${admin.name}“ löschen?'),
           content: const Text(
             'Möchtest du dieses Konto wirklich unwiderruflich löschen? '
-            'Alle zugehörigen Zugangsdaten werden entfernt.',
+            'Alle zugehörigen Daten werden entfernt.',
           ),
           actions: [
             TextButton(
@@ -835,20 +611,14 @@ class _AdminManagementScreenState extends State<AdminManagementScreen> {
                                 ),
                               ),
                               IconButton(
-                                tooltip: 'Passwort zurücksetzen',
-                                onPressed: () => _resetPassword(admin),
-                                icon: const Icon(Icons.key, size: 18),
-                              ),
-                              if (!admin.isMain)
-                                IconButton(
-                                  tooltip: 'Konto löschen',
-                                  onPressed: () => _remove(admin),
-                                  icon: const Icon(
-                                    Icons.delete_outline,
-                                    size: 18,
-                                    color: Colors.redAccent,
-                                  ),
+                                tooltip: 'Konto löschen',
+                                onPressed: () => _remove(admin),
+                                icon: const Icon(
+                                  Icons.delete_outline,
+                                  size: 18,
+                                  color: Colors.redAccent,
                                 ),
+                              ),
                             ],
                           ),
                         ),
