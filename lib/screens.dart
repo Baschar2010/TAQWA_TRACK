@@ -997,10 +997,12 @@ class _PrayerTile extends StatelessWidget {
       label: '${prayerNames[prayer]}, ${done ? 'erledigt' : 'offen'}',
       child: GoldFlash(
         active: allDone,
-        borderRadius: 9,
-        child: InkWell(
-          key: ValueKey('prayer-${prayer.name}'),
-          borderRadius: BorderRadius.circular(9),
+        borderRadius: 12,
+        child: Material(
+          type: MaterialType.transparency,
+          child: InkWell(
+            key: ValueKey('prayer-${prayer.name}'),
+            borderRadius: BorderRadius.circular(12),
           onTap: () async {
             HapticFeedback.selectionClick();
             final award = await controller.togglePrayer(prayer);
@@ -1096,6 +1098,7 @@ class _PrayerTile extends StatelessWidget {
               ],
             ),
           ),
+        ),
         ),
       ),
     );
