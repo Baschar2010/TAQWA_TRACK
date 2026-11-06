@@ -12,6 +12,7 @@ import 'package:taqwa_track/app_info.dart';
 import 'package:taqwa_track/data/taqwa_repository.dart';
 import 'package:taqwa_track/domain.dart';
 import 'package:taqwa_track/feedback_screen.dart';
+import 'package:taqwa_track/ai_chat_screen.dart';
 import 'package:taqwa_track/hadith_screen.dart';
 import 'package:taqwa_track/info_screens.dart';
 import 'package:taqwa_track/language.dart';
@@ -725,6 +726,22 @@ void main() {
       ),
       findsOneWidget,
     );
+  });
+
+  testWidgets('Islamic AI Chat zeigt Begrüßung und Offline-Hinweis ohne Konfiguration', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(theme: taqwaTheme(), home: const AiChatScreen()),
+    );
+    await tester.pump();
+
+    expect(find.text('Islamic AI'), findsOneWidget);
+    expect(find.textContaining('As-salamu alaykum'), findsWidgets);
+
+    await tester.enterText(find.byType(TextField), 'Was ist das Kalifat?');
+    await tester.tap(find.byIcon(Icons.send));
+    await tester.pump();
+
+    expect(find.text('Islamic AI is not configured yet.'), findsOneWidget);
   });
 
   testWidgets('Datenschutz und FAQ sind erreichbar', (tester) async {

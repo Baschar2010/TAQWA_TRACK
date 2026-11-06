@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:hijri/hijri_calendar.dart';
 
+import 'ai_chat_screen.dart';
 import 'admin_feedback.dart';
 import 'app_controller.dart';
 import 'app_info.dart';
@@ -789,6 +790,60 @@ class _HomeScreenState extends State<HomeScreen> {
                         Text(
                           'Dhikr zählen · ${settings.tasbihCount}/${settings.tasbihTarget}',
                           style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Icon(
+                    Icons.chevron_right,
+                    size: 18,
+                    color: TaqwaColors.goldLight,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        TaqwaCard(
+          padding: EdgeInsets.zero,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(14),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => const AiChatScreen(),
+              ),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(11),
+              child: Row(
+                children: [
+                  Container(
+                    width: 34,
+                    height: 34,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: TaqwaColors.gold),
+                      color: TaqwaColors.chip,
+                    ),
+                    child: Icon(
+                      Icons.auto_awesome,
+                      color: TaqwaColors.goldLight,
+                      size: 16,
+                    ),
+                  ),
+                  const SizedBox(width: 9),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Eyebrow('ISLAMIC AI'),
+                        Text(
+                          'Fragen an die KI – Koran, Hadith, Gebete',
+                          style: TextStyle(
                             fontWeight: FontWeight.w700,
                             fontSize: 12,
                           ),

@@ -81,6 +81,17 @@ class AppText {
     this.hadithPrayerOpen = 'Gebets-Hadithe ›',
     this.hadithCopy = 'Hadith kopieren',
     this.hadithCopySnack = 'Hadith kopiert',
+    this.aiChatTitle = 'Islamic AI',
+    this.aiChatSubtitle = 'Fragen zum Koran, Hadith und Islam',
+    this.aiChatGreeting =
+        'As-salāmu ʿalaykum. Ich helfe dir gerne – stell mir gerne alles über '
+        'den Islam, den Koran oder die Gebete.',
+    this.aiChatPlaceholder = 'Frage zum Islam …',
+    this.aiChatSend = 'Senden',
+    this.aiChatErrorNoKey = 'Die islamische KI ist noch nicht konfiguriert.',
+    this.aiChatError = 'Die Antwort der KI konnte nicht geladen werden.',
+    this.aiChatDisclaimer =
+        'Die KI antwortet automatisch – prüfe wichtige religiöse Inhalte.',
   });
 
   final String welcome;
@@ -112,6 +123,14 @@ class AppText {
   final String hadithPrayerOpen;
   final String hadithCopy;
   final String hadithCopySnack;
+  final String aiChatTitle;
+  final String aiChatSubtitle;
+  final String aiChatGreeting;
+  final String aiChatPlaceholder;
+  final String aiChatSend;
+  final String aiChatErrorNoKey;
+  final String aiChatError;
+  final String aiChatDisclaimer;
 
   static AppText of(String? code) => _texts[code] ?? _texts['en']!;
 
@@ -147,6 +166,17 @@ class AppText {
       hadithPrayerOpen: 'Gebets-Hadithe ›',
       hadithCopy: 'Hadith kopieren',
       hadithCopySnack: 'Hadith kopiert',
+      aiChatTitle: 'Islamic AI',
+      aiChatSubtitle: 'Deine Fragen zum Koran, Hadith und Islam',
+      aiChatGreeting:
+          'As-salāmu ʿalaykum. Ich helfe dir gerne – stell mir gerne alles über '
+          'den Islam, den Koran oder die Gebete.',
+      aiChatPlaceholder: 'Stelle eine Frage zum Islam …',
+      aiChatSend: 'Senden',
+      aiChatErrorNoKey: 'Die islamische KI ist noch nicht konfiguriert.',
+      aiChatError: 'Die Antwort der KI konnte nicht geladen werden.',
+      aiChatDisclaimer:
+          'Die KI antwortet automatisch – prüfe wichtige religiöse Inhalte.',
     ),
     'en': AppText(
       welcome: 'Welcome to TAQWA TRACK',
@@ -179,6 +209,18 @@ class AppText {
       hadithPrayerOpen: 'Prayer hadith ›',
       hadithCopy: 'Copy hadith',
       hadithCopySnack: 'Hadith copied',
+      aiChatTitle: 'Islamic AI',
+      aiChatSubtitle: 'Your questions about the Quran, hadith and Islam',
+      aiChatGreeting:
+          'As-salamu alaykum. I am happy to help – feel free to ask me anything '
+          'about Islam, the Quran or prayers.',
+      aiChatPlaceholder: 'Ask an Islamic question …',
+      aiChatSend: 'Send',
+      aiChatErrorNoKey: 'Islamic AI is not configured yet.',
+      aiChatError: 'The AI response could not be loaded.',
+      aiChatDisclaimer:
+          'The AI answers automatically – please verify important religious '
+          'content.',
     ),
     'ar': AppText(
       welcome: 'مرحبًا بك في تقوى تراك',
@@ -210,6 +252,17 @@ class AppText {
       hadithPrayerOpen: 'حديث الصلاة ›',
       hadithCopy: 'نسخ الحديث',
       hadithCopySnack: 'تم نسخ الحديث',
+      aiChatTitle: 'الذكاء الإسلامي',
+      aiChatSubtitle: 'أسئلةك عن القرآن والأحاديث والإسلام',
+      aiChatGreeting:
+          'السلام عليكم. يسعدني مساعدتك – لا تتردد في سؤالك عن الإسلام أو '
+          'القرآن أو الصلوات.',
+      aiChatPlaceholder: 'اسأل سؤالاً إسلامياً …',
+      aiChatSend: 'إرسال',
+      aiChatErrorNoKey: 'الذكاء الإسلامي غير مهيأ بعد.',
+      aiChatError: 'تعذر تحميل رد الذكاء الإسلامي.',
+      aiChatDisclaimer:
+          'يُجيب الذكاء الإسلامي تلقائيًا – يُرجى التحقق من المحتوى الديني.',
     ),
     'fr': AppText(
       welcome: 'Bienvenue sur TAQWA TRACK',
@@ -229,6 +282,17 @@ class AppText {
       navPrayer: 'Prières',
       navQibla: 'Qibla',
       greeting: 'As-salamou alaykoum',
+      aiChatTitle: 'IA islamique',
+      aiChatSubtitle: 'Tes questions sur le Coran, les hadiths et l’Islam',
+      aiChatGreeting:
+          'As-salamou alaykoum. Je suis ravi de t’aider – n’hésite pas à me '
+          'poser des questions sur l’Islam, le Coran ou les prières.',
+      aiChatPlaceholder: 'Pose une question islamique …',
+      aiChatSend: 'Envoyer',
+      aiChatErrorNoKey: 'L’IA islamique n’est pas encore configurée.',
+      aiChatError: 'La réponse de l’IA n’a pas pu être chargée.',
+      aiChatDisclaimer:
+          'L’IA répond automatiquement – vérifie les contenus religieux.',
     ),
     'tr': AppText(
       welcome: 'TAQWA TRACK’e hoş geldin',
@@ -248,6 +312,17 @@ class AppText {
       navPrayer: 'Namazlar',
       navQibla: 'Kıble',
       greeting: 'Selamün aleyküm',
+      aiChatTitle: 'İslam AI',
+      aiChatSubtitle: 'Kur’an, hadis ve İslam hakkında soruların',
+      aiChatGreeting:
+          'Selamün aleyküm. İslam, Kur’an veya namaz hakkında sorularını sana '
+          'memnuniyetle yanıtlarım.',
+      aiChatPlaceholder: 'İslamî bir soru sor …',
+      aiChatSend: 'Gönder',
+      aiChatErrorNoKey: 'İslam AI henüz yapılandırılmadı.',
+      aiChatError: 'Yapay zekâ yanıtı yüklenemedi.',
+      aiChatDisclaimer: 'Yapay zekâ otomatik yanıt verir – önemli dini içerikleri '
+          'doğrulayın.',
     ),
     'es': AppText(
       welcome: 'Bienvenido a TAQWA TRACK',
@@ -267,6 +342,17 @@ class AppText {
       navPrayer: 'Oraciones',
       navQibla: 'Qibla',
       greeting: 'As-salamu alaykum',
+      aiChatTitle: 'IA islámica',
+      aiChatSubtitle: 'Tus preguntas sobre el Corán, los hadices y el Islam',
+      aiChatGreeting:
+          'As-salamu alaykum. Me alegra ayudarte – no dudes en preguntarme sobre '
+          'el Islam, el Corán o las oraciones.',
+      aiChatPlaceholder: 'Haz una pregunta islamica …',
+      aiChatSend: 'Enviar',
+      aiChatErrorNoKey: 'La IA islamica aún no esta configurada.',
+      aiChatError: 'No se pudo cargar la respuesta de la IA.',
+      aiChatDisclaimer:
+          'La IA responde automaticamente – verifica el contenido religioso.',
     ),
     'ru': AppText(
       welcome: 'Добро пожаловать в TAQWA TRACK',
