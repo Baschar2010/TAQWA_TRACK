@@ -68,6 +68,19 @@ class AppText {
     required this.navPrayer,
     required this.navQibla,
     required this.greeting,
+    this.hadithLibraryTitle = 'Hadith-Bibliothek',
+    this.hadithSearchHint = 'Hadithe durchsuchen (z. B. Gebet, Geduld) …',
+    this.hadithShowGerman = 'Deutsch',
+    this.hadithShowArabic = 'Arabisch',
+    this.hadithAll = 'Alle',
+    this.hadithPrayer = 'Gebet',
+    this.hadithCount = 'Treffer',
+    this.hadithNone = 'Keine Hadithe gefunden.',
+    this.hadithToday = 'Heute',
+    this.hadithOpenAll = 'Alle ›',
+    this.hadithPrayerOpen = 'Gebets-Hadithe ›',
+    this.hadithCopy = 'Hadith kopieren',
+    this.hadithCopySnack = 'Hadith kopiert',
   });
 
   final String welcome;
@@ -86,6 +99,19 @@ class AppText {
   final String navPrayer;
   final String navQibla;
   final String greeting;
+  final String hadithLibraryTitle;
+  final String hadithSearchHint;
+  final String hadithShowGerman;
+  final String hadithShowArabic;
+  final String hadithAll;
+  final String hadithPrayer;
+  final String hadithCount;
+  final String hadithNone;
+  final String hadithToday;
+  final String hadithOpenAll;
+  final String hadithPrayerOpen;
+  final String hadithCopy;
+  final String hadithCopySnack;
 
   static AppText of(String? code) => _texts[code] ?? _texts['en']!;
 
@@ -108,6 +134,19 @@ class AppText {
       navPrayer: 'Gebete',
       navQibla: 'Qibla',
       greeting: 'As-salāmu ʿalaykum',
+      hadithLibraryTitle: 'Hadith-Bibliothek',
+      hadithSearchHint: 'Hadithe durchsuchen (z. B. Gebet, Geduld) …',
+      hadithShowGerman: 'Deutsch',
+      hadithShowArabic: 'Arabisch',
+      hadithAll: 'Alle',
+      hadithPrayer: 'Gebet',
+      hadithCount: 'Treffer',
+      hadithNone: 'Keine Hadithe gefunden.',
+      hadithToday: 'Heute',
+      hadithOpenAll: 'Alle ›',
+      hadithPrayerOpen: 'Gebets-Hadithe ›',
+      hadithCopy: 'Hadith kopieren',
+      hadithCopySnack: 'Hadith kopiert',
     ),
     'en': AppText(
       welcome: 'Welcome to TAQWA TRACK',
@@ -127,6 +166,19 @@ class AppText {
       navPrayer: 'Prayers',
       navQibla: 'Qibla',
       greeting: 'As-salamu alaykum',
+      hadithLibraryTitle: 'Hadith Library',
+      hadithSearchHint: 'Search hadiths (e.g. prayer, patience) …',
+      hadithShowGerman: 'German',
+      hadithShowArabic: 'Arabic',
+      hadithAll: 'All',
+      hadithPrayer: 'Prayer',
+      hadithCount: 'Results',
+      hadithNone: 'No hadiths found.',
+      hadithToday: 'Today',
+      hadithOpenAll: 'All ›',
+      hadithPrayerOpen: 'Prayer hadith ›',
+      hadithCopy: 'Copy hadith',
+      hadithCopySnack: 'Hadith copied',
     ),
     'ar': AppText(
       welcome: 'مرحبًا بك في تقوى تراك',
@@ -145,6 +197,19 @@ class AppText {
       navPrayer: 'الصلوات',
       navQibla: 'القبلة',
       greeting: 'السلام عليكم',
+      hadithLibraryTitle: 'مكتبة الأحاديث',
+      hadithSearchHint: 'ابحث في الأحاديث (مثل الصلاة، الصبر) …',
+      hadithShowGerman: 'الألمانية',
+      hadithShowArabic: 'العربية',
+      hadithAll: 'الكل',
+      hadithPrayer: 'الصلاة',
+      hadithCount: 'نتائج',
+      hadithNone: 'لم يتم العثور على أحاديث.',
+      hadithToday: 'اليوم',
+      hadithOpenAll: 'الكل ›',
+      hadithPrayerOpen: 'حديث الصلاة ›',
+      hadithCopy: 'نسخ الحديث',
+      hadithCopySnack: 'تم نسخ الحديث',
     ),
     'fr': AppText(
       welcome: 'Bienvenue sur TAQWA TRACK',

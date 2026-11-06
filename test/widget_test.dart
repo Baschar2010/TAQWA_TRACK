@@ -673,9 +673,9 @@ void main() {
     for (var i = 0; i < 6; i++) {
       await tester.pump(const Duration(milliseconds: 200));
     }
-    expect(find.text('Hadith-Bibliothek'), findsOneWidget);
+    expect(find.text('Hadith Library'), findsOneWidget);
     expect(
-      find.text('Hadithe durchsuchen (z. B. Gebet, Geduld) …'),
+      find.text('Search hadiths (e.g. prayer, patience) …'),
       findsOneWidget,
     );
 
@@ -685,7 +685,46 @@ void main() {
 
     await tester.enterText(find.byType(TextField).first, 'xyz-kein-treffer');
     await tester.pump();
-    expect(find.text('Keine Hadithe gefunden.'), findsOneWidget);
+    expect(find.text('No hadiths found.'), findsOneWidget);
+  });
+
+  testWidgets('Hadith-Bibliothek: Arabisch/Deutsch-Umschaltung zeigt '
+      'Originaltext mit RTL', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(theme: taqwaTheme(), home: const HadithListScreen()),
+    );
+    for (var i = 0; i < 6; i++) {
+      await tester.pump(const Duration(milliseconds: 200));
+    }
+
+    // Standard: Deutsch.
+    expect(find.text('Hadith Library'), findsOneWidget);
+    expect(
+      find.text('Search hadiths (e.g. prayer, patience) …'),
+      findsOneWidget,
+    );
+
+    // Umschalten auf Arabisch / Original.
+    await tester.tap(find.text('Arabic'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+
+    final arabText = tester.widget<Text>(
+      find.text('„إنما الأعمال بالنيات“'),
+    );
+    expect(arabText.textDirection.toString(), contains('rtl'));
+
+    // Zurueck auf Deutsch.
+    await tester.tap(find.text('German'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(
+      find.text(
+        '„Die Taten werden nach den Absichten beurteilt, und jedem Menschen '
+        'wird das zuteil, was er beabsichtigt hat.“',
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('Datenschutz und FAQ sind erreichbar', (tester) async {

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'language.dart';
 import 'theme.dart';
 
 class Hadith {
@@ -13,6 +14,7 @@ class Hadith {
     required this.topic,
     required this.tags,
     required this.isPrayer,
+    this.arabic = '',
   });
 
   factory Hadith.fromJson(Map<String, dynamic> json) => Hadith(
@@ -25,14 +27,20 @@ class Hadith {
         tag as String,
     ],
     isPrayer: json['prayer'] == true,
+    arabic: (json['ar'] as String?) ?? (json['arabic'] as String?) ?? '',
   );
 
   final int id;
   final String text;
+  final String arabic;
   final String source;
   final String topic;
   final List<String> tags;
   final bool isPrayer;
+
+  /// Liefert den anzuzeigenden Text: Arabisch (Original) oder Deutsch.
+  String textFor({required bool showArabic}) =>
+      showArabic && arabic.isNotEmpty ? arabic : text;
 
   bool matches(String query) {
     final q = query.trim().toLowerCase();
@@ -90,8 +98,9 @@ class HadithLibrary {
 }
 
 class HadithOfTheDayCard extends StatelessWidget {
-  const HadithOfTheDayCard({super.key, required this.onOpenAll});
+  const HadithOfTheDayCard({super.key, required this.onOpenAll, this.showArabic = false});
   final VoidCallback onOpenAll;
+  final bool showArabic;
 
   @override
   Widget build(BuildContext context) => FutureBuilder<List<Hadith>>(
@@ -159,7 +168,7 @@ class HadithOfTheDayCard extends StatelessWidget {
               )
             else ...[
               Text(
-                '„${hadith.text}“',
+                '„${hadith.textFor(showArabic: showArabic)}“',
                 style: TextStyle(
                   fontSize: 11,
                   height: 1.45,
@@ -193,7 +202,8 @@ class HadithOfTheDayCard extends StatelessWidget {
 
 /// Kompakte Hadith-Karte für den Gebete-Tab.
 class PrayerHadithCard extends StatelessWidget {
-  const PrayerHadithCard({super.key});
+  const PrayerHadithCard({super.key, this.showArabic = false});
+  final bool showArabic;
   @override
   Widget build(BuildContext context) => FutureBuilder<List<Hadith>>(
     future: HadithLibrary.load(),
@@ -216,8 +226,10 @@ class PrayerHadithCard extends StatelessWidget {
                   TextButton(
                     onPressed: () => Navigator.of(context).push(
                       MaterialPageRoute<void>(
-                        builder: (_) =>
-                            const HadithListScreen(prayerOnly: true),
+                        builder: (_) => HadithListScreen(
+                          prayerOnly: true,
+                          arabic: showArabic,
+                        ),
                       ),
                     ),
                     style: TextButton.styleFrom(
@@ -252,7 +264,7 @@ class PrayerHadithCard extends StatelessWidget {
               )
             else ...[
               Text(
-                '„${hadith.text}“',
+                '„${hadith.textFor(showArabic: showArabic)}“',
                 style: const TextStyle(fontSize: 11, height: 1.45),
               ),
               const SizedBox(height: 6),
@@ -269,8 +281,9 @@ class PrayerHadithCard extends StatelessWidget {
 }
 
 class HadithListScreen extends StatefulWidget {
-  const HadithListScreen({super.key, this.prayerOnly = false});
+  const HadithListScreen({super.key, this.prayerOnly = false, this.arabic = false});
   final bool prayerOnly;
+  final bool arabic;
 
   @override
   State<HadithListScreen> createState() => _HadithListScreenState();
@@ -279,12 +292,15 @@ class HadithListScreen extends StatefulWidget {
 class _HadithListScreenState extends State<HadithListScreen> {
   String _query = '';
   late bool _prayerOnly = widget.prayerOnly;
+  late bool _arabic = widget.arabic;
   late final Future<List<Hadith>> _items = HadithLibrary.load();
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Hadith-Bibliothek')),
-    body: StarField(
+  Widget build(BuildContext context) {
+    final text = AppText.of(Localizations.localeOf(context).languageCode);
+    return Scaffold(
+      appBar: AppBar(title: Text(text.hadithLibraryTitle)),
+      body: StarField(
       child: SafeArea(
         child: FutureBuilder<List<Hadith>>(
           future: _items,
@@ -308,7 +324,7 @@ class _HadithListScreenState extends State<HadithListScreen> {
                     onChanged: (value) => setState(() => _query = value),
                     style: const TextStyle(fontSize: 12),
                     decoration: InputDecoration(
-                      hintText: 'Hadithe durchsuchen (z. B. Gebet, Geduld) …',
+                      hintText: text.hadithSearchHint,
                       prefixIcon: Icon(
                         Icons.search,
                         size: 18,
@@ -329,20 +345,39 @@ class _HadithListScreenState extends State<HadithListScreen> {
                   child: Row(
                     children: [
                       _FilterChip(
-                        label: 'Alle (${all.length})',
+                        label: '${text.hadithAll} (${all.length})',
                         selected: !_prayerOnly,
                         onTap: () => setState(() => _prayerOnly = false),
                       ),
                       const SizedBox(width: 6),
                       _FilterChip(
-                        label: 'Gebet (${all.where((h) => h.isPrayer).length})',
+                        label:
+                            '${text.hadithPrayer} (${all.where((h) => h.isPrayer).length})',
                         selected: _prayerOnly,
                         onTap: () => setState(() => _prayerOnly = true),
                       ),
                       const Spacer(),
                       Text(
-                        '${visible.length} Treffer',
+                        '${visible.length} ${text.hadithCount}',
                         style: TextStyle(color: TaqwaColors.muted, fontSize: 8),
+                      ),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  child: Row(
+                    children: [
+                      _FilterChip(
+                        label: text.hadithShowGerman,
+                        selected: !_arabic,
+                        onTap: () => setState(() => _arabic = false),
+                      ),
+                      const SizedBox(width: 6),
+                      _FilterChip(
+                        label: text.hadithShowArabic,
+                        selected: _arabic,
+                        onTap: () => setState(() => _arabic = true),
                       ),
                     ],
                   ),
@@ -351,7 +386,7 @@ class _HadithListScreenState extends State<HadithListScreen> {
                   child: visible.isEmpty
                       ? Center(
                           child: Text(
-                            'Keine Hadithe gefunden.',
+                            text.hadithNone,
                             style: TextStyle(
                               color: TaqwaColors.muted,
                               fontSize: 11,
@@ -365,7 +400,11 @@ class _HadithListScreenState extends State<HadithListScreen> {
                           itemBuilder: (context, index) {
                             final hadith = visible[index];
                             final isToday = hadith.id == today.id;
-                            return _HadithTile(hadith: hadith, today: isToday);
+                            return _HadithTile(
+                              hadith: hadith,
+                              today: isToday,
+                              arabic: _arabic,
+                            );
                           },
                         ),
                 ),
@@ -376,6 +415,7 @@ class _HadithListScreenState extends State<HadithListScreen> {
       ),
     ),
   );
+  }
 }
 
 class _FilterChip extends StatelessWidget {
@@ -413,9 +453,10 @@ class _FilterChip extends StatelessWidget {
 }
 
 class _HadithTile extends StatelessWidget {
-  const _HadithTile({required this.hadith, required this.today});
+  const _HadithTile({required this.hadith, required this.today, this.arabic = false});
   final Hadith hadith;
   final bool today;
+  final bool arabic;
 
   @override
   Widget build(BuildContext context) => TaqwaCard(
@@ -424,7 +465,9 @@ class _HadithTile extends StatelessWidget {
     child: InkWell(
       borderRadius: BorderRadius.circular(14),
       onTap: () => Navigator.of(context).push(
-        MaterialPageRoute<void>(builder: (_) => HadithDetailScreen(hadith)),
+        MaterialPageRoute<void>(
+          builder: (_) => HadithDetailScreen(hadith, arabic: arabic),
+        ),
       ),
       child: Padding(
         padding: const EdgeInsets.all(12),
@@ -451,7 +494,9 @@ class _HadithTile extends StatelessWidget {
                       border: Border.all(color: TaqwaColors.gold),
                     ),
                     child: Text(
-                      'Heute',
+                      AppText.of(
+                        Localizations.localeOf(context).languageCode,
+                      ).hadithToday,
                       style: TextStyle(
                         color: TaqwaColors.goldLight,
                         fontSize: 7,
@@ -463,8 +508,13 @@ class _HadithTile extends StatelessWidget {
             ),
             const SizedBox(height: 6),
             Text(
-              '„${hadith.text}“',
-              style: const TextStyle(fontSize: 11, height: 1.5),
+              '„${hadith.textFor(showArabic: arabic)}“',
+              style: TextStyle(
+                fontSize: 11,
+                height: 1.5,
+              ),
+              // Arabisch in Right-to-Left rendern.
+              textDirection: arabic ? TextDirection.rtl : TextDirection.ltr,
             ),
             const SizedBox(height: 8),
             Row(
@@ -492,26 +542,35 @@ class _HadithTile extends StatelessWidget {
 }
 
 class HadithDetailScreen extends StatelessWidget {
-  const HadithDetailScreen(this.hadith, {super.key});
+  const HadithDetailScreen(this.hadith, {super.key, this.arabic = false});
   final Hadith hadith;
+  final bool arabic;
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: Text(hadith.topic.isEmpty ? 'Hadith' : hadith.topic)),
-    body: StarField(
-      child: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(15),
-          children: [
-            TaqwaCard(
-              goldBorder: true,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    '„${hadith.text}“',
-                    style: const TextStyle(fontSize: 13, height: 1.6),
-                  ),
+  Widget build(BuildContext context) {
+    final displayed = hadith.textFor(showArabic: arabic);
+    return Scaffold(
+      appBar: AppBar(title: Text(hadith.topic.isEmpty ? 'Hadith' : hadith.topic)),
+      body: StarField(
+        child: SafeArea(
+          child: ListView(
+            padding: const EdgeInsets.all(15),
+            children: [
+              TaqwaCard(
+                goldBorder: true,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '„$displayed“',
+                      style: TextStyle(
+                        fontSize: arabic ? 15 : 13,
+                        height: arabic ? 2.0 : 1.6,
+                      ),
+                      // Arabisch in Right-to-Left rendern.
+                      textDirection:
+                          arabic ? TextDirection.rtl : TextDirection.ltr,
+                    ),
                   const SizedBox(height: 12),
                   Divider(height: 1, color: TaqwaColors.border),
                   const SizedBox(height: 10),
@@ -569,21 +628,27 @@ class HadithDetailScreen extends StatelessWidget {
             OutlinedButton.icon(
               onPressed: () async {
                 await Clipboard.setData(
-                  ClipboardData(text: '„${hadith.text}“\n— ${hadith.source}'),
+                  ClipboardData(text: '„$displayed“\n— ${hadith.source}'),
                 );
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Hadith kopiert'),
-                      duration: Duration(seconds: 1),
+                    SnackBar(
+                      content: Text(
+                        AppText.of(
+                          Localizations.localeOf(context).languageCode,
+                        ).hadithCopySnack,
+                      ),
+                      duration: const Duration(seconds: 1),
                     ),
                   );
                 }
               },
               icon: const Icon(Icons.copy, size: 14),
-              label: const Text(
-                'Hadith kopieren',
-                style: TextStyle(fontSize: 10),
+              label: Text(
+                AppText.of(
+                  Localizations.localeOf(context).languageCode,
+                ).hadithCopy,
+                style: const TextStyle(fontSize: 10),
               ),
               style: OutlinedButton.styleFrom(
                 foregroundColor: TaqwaColors.goldLight,
@@ -596,4 +661,5 @@ class HadithDetailScreen extends StatelessWidget {
       ),
     ),
   );
+  }
 }

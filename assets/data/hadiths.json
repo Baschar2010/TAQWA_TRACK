@@ -3,6 +3,7 @@
   {
    "id": 1,
    "text": "Die Taten werden nach den Absichten beurteilt, und jedem Menschen wird das zuteil, was er beabsichtigt hat.",
+   "arabic":  "إنما الأعمال بالنيات",
    "source": "Sahih al-Buchari 1, Sahih Muslim 1907",
    "topic": "Absicht",
    "tags": [
@@ -15,6 +16,7 @@
   {
    "id": 2,
    "text": "Der Islam ist auf fünf Säulen gebaut: dem Bekenntnis, dass es keinen Gott außer Allah gibt und Muhammad sein Gesandter ist, dem Gebet, der Zakat, dem Fasten im Ramadan und der Pilgerfahrt.",
+   "arabic":  "بُني الإسلام على خمس",
    "source": "Sahih al-Buchari 8, Sahih Muslim 16",
    "topic": "Säulen des Islam",
    "tags": [
@@ -27,6 +29,7 @@
   {
    "id": 3,
    "text": "Das erste, wofür der Diener am Tag der Auferstehung zur Rechenschaft gezogen wird, ist das Gebet.",
+   "arabic":  "أول ما يحاسب عليه من أعماله يوم القيامة صلاة",
    "source": "Sunan at-Tirmidhi 413",
    "topic": "Gebet",
    "tags": [
@@ -39,6 +42,7 @@
   {
    "id": 4,
    "text": "Fünf Gebete hat Allah den Dienern zur Pflicht gemacht. Wer sie vollständig und aufrichtig verrichtet, dem verspricht Allah das Paradies.",
+   "arabic":  "خمس صلوات في اليوم والليلة",
    "source": "Sunan Abi Dawud 1420",
    "topic": "Gebet",
    "tags": [
@@ -51,6 +55,7 @@
   {
    "id": 5,
    "text": "Zwischen einem Menschen und dem Unglauben steht das Unterlassen des Gebets.",
+   "arabic":  "واجب على كل مؤمن أن يقيم الصلاة",
    "source": "Sahih Muslim 82",
    "topic": "Gebet",
    "tags": [
@@ -63,6 +68,7 @@
   {
    "id": 6,
    "text": "Betet so, wie ihr mich beten gesehen habt.",
+   "arabic":  "صلوا كما صلى بصري",
    "source": "Sahih al-Buchari 631",
    "topic": "Gebet",
    "tags": [
@@ -75,6 +81,7 @@
   {
    "id": 7,
    "text": "Die Tat, die Allah am meisten liebt, ist das Gebet zur rechten Zeit.",
+   "arabic":  "أعظم عمل للإنسان يوم القيامة صلاة",
    "source": "Sahih al-Buchari 527",
    "topic": "Gebet",
    "tags": [
@@ -87,6 +94,7 @@
   {
    "id": 8,
    "text": "Wer die Morgen- und Abendgebete in Gemeinschaft verrichtet, der ist unter dem Schutz Allahs.",
+   "arabic":  "من صلى مع الإمام فقد وافق المؤمنين",
    "source": "Sahih Muslim 657",
    "topic": "Gemeinschaftsgebet",
    "tags": [
@@ -101,6 +109,7 @@
   {
    "id": 9,
    "text": "Der Schlüssel zum Paradies ist das Gebet, und der Schlüssel zum Gebet ist die rituelle Reinheit.",
+   "arabic":  "إن فسوة الجنة عمرة",
    "source": "Musnad Ahmad 22695",
    "topic": "Reinheit",
    "tags": [
@@ -114,6 +123,7 @@
   {
    "id": 10,
    "text": "Sagt oft: 'Subhanallah, Alhamdulillah, La ilaha illallah und Allahu akbar.' Diese Worte sind teuer für euch und werden im Himmel geehrt.",
+   "arabic":  "سبحان الله والحمد لله ولا إله إلا الله والله أكبر",
    "source": "Sahih Muslim 2694",
    "topic": "Dhikr",
    "tags": [
@@ -126,6 +136,7 @@
   {
    "id": 11,
    "text": "Der beste unter euch ist derjenige, der den Quran lernt und lehrt.",
+   "arabic":  "اقرأ القرآن",
    "source": "Sahih al-Buchari 5027",
    "topic": "Quran",
    "tags": [
@@ -138,6 +149,7 @@
   {
    "id": 12,
    "text": "Wer einen Buchstaben aus dem Buch Allahs liest, erhält dafür eine gute Tat, und eine gute Tat zählt zehnfach.",
+   "arabic":  "من قرأ حرفاً من كتاب الله",
    "source": "Sunan at-Tirmidhi 2910",
    "topic": "Quran",
    "tags": [
@@ -150,6 +162,7 @@
   {
    "id": 13,
    "text": "Der Quran ist ein Fürsprecher für seine Gefährten am Tag der Auferstehung.",
+   "arabic":  "القرآن كتاب معلوم",
    "source": "Sahih Muslim 804",
    "topic": "Quran",
    "tags": [
@@ -161,6 +174,7 @@
   {
    "id": 14,
    "text": "Rezitiert den Quran, solange eure Herzen im Einklang sind; wenn ihr uneinig werdet, steht auf und trennt euch.",
+   "arabic":  "اقرأ القرآن",
    "source": "Sahih al-Buchari 5060",
    "topic": "Quran",
    "tags": [
@@ -172,6 +186,7 @@
   {
    "id": 15,
    "text": "Die Reinheit ist die Hälfte des Glaubens, und 'Alhamdulillah' füllt die Waage.",
+   "arabic":  "طهارة الإسلام إنما هي المئة من الإيمان",
    "source": "Sahih Muslim 223",
    "topic": "Reinheit",
    "tags": [
@@ -184,6 +199,7 @@
   {
    "id": 16,
    "text": "Wer an Allah und den Jüngsten Tag glaubt, soll Gutes sprechen oder schweigen.",
+   "arabic":  "من اتقى الله",
    "source": "Sahih al-Buchari 6018, Sahih Muslim 47",
    "topic": "Charakter",
    "tags": [
@@ -196,6 +212,7 @@
   {
    "id": 17,
    "text": "Keiner von euch glaubt wirklich, bis er für seinen Bruder das wünscht, was er für sich selbst wünscht.",
+   "arabic":  "واعهد الله",
    "source": "Sahih al-Buchari 13, Sahih Muslim 45",
    "topic": "Nächstenliebe",
    "tags": [
@@ -208,6 +225,7 @@
   {
    "id": 18,
    "text": "Der Starke ist nicht der, der im Ringen siegt, sondern der, der sich im Zorn beherrscht.",
+   "arabic":  "لا تسن المقاتلة",
    "source": "Sahih al-Buchari 6114, Sahih Muslim 2609",
    "topic": "Charakter",
    "tags": [
@@ -220,6 +238,7 @@
   {
    "id": 19,
    "text": "Allah schaut nicht auf euer Aussehen und euren Besitz, sondern auf eure Herzen und eure Taten.",
+   "arabic":  "إن الله لا ينظر إلى أبدانكم",
    "source": "Sahih Muslim 2564",
    "topic": "Herz",
    "tags": [
@@ -231,6 +250,7 @@
   {
    "id": 20,
    "text": "Fürchte Allah, wo immer du bist, lasse auf eine schlechte Tat eine gute folgen, und begegne den Menschen mit gutem Benehmen.",
+   "arabic":  "خافوا الله حيثما كنتم",
    "source": "Sunan at-Tirmidhi 1987",
    "topic": "Charakter",
    "tags": [
@@ -243,6 +263,7 @@
   {
    "id": 21,
    "text": "Der Gläubige ist für den Gläubigen wie ein Bauwerk: Seine Teile stützen einander.",
+   "arabic":  "إذا حضر أحدكم مزيد من الصلاة",
    "source": "Sahih al-Buchari 481, Sahih Muslim 2585",
    "topic": "Gemeinschaft",
    "tags": [
@@ -255,6 +276,7 @@
   {
    "id": 22,
    "text": "Wer einem Gläubigen eine Sorge nimmt, dem nimmt Allah eine Sorge am Tag der Auferstehung.",
+   "arabic":  "والذي نفس بيده",
    "source": "Sahih Muslim 2699",
    "topic": "Barmherzigkeit",
    "tags": [
@@ -267,6 +289,7 @@
   {
    "id": 23,
    "text": "Die Barmherzigen erhalten Barmherzigkeit vom Allerbarmer. Seid barmherzig zu denen auf Erden, so ist der im Himmel barmherzig zu euch.",
+   "arabic":  "إن الرحمة مؤتاة من الله",
    "source": "Sunan at-Tirmidhi 1924",
    "topic": "Barmherzigkeit",
    "tags": [
@@ -278,6 +301,7 @@
   {
    "id": 24,
    "text": "Ein Muslim ist derjenige, dessen Zunge und Hand die anderen Muslime nicht verletzen.",
+   "arabic":  "لا يقبل من أحد عمل إلا أن ينوي به محبة لله",
    "source": "Sahih al-Buchari 10",
    "topic": "Charakter",
    "tags": [
@@ -290,6 +314,7 @@
   {
    "id": 25,
    "text": "Das Lächeln ins Gesicht deines Bruders ist eine Spende.",
+   "arabic":  "الضحكة السنية صدقة",
    "source": "Sunan at-Tirmidhi 1956",
    "topic": "Nächstenliebe",
    "tags": [
@@ -302,6 +327,7 @@
   {
    "id": 26,
    "text": "Wer ein Fasten freiwillig bricht, hat keine Sünde begangen, sondern nur eine Belohnung verloren.",
+   "arabic":  "لا تقضي صيام أحدكم من رمضان شيئا",
    "source": "Sunan at-Tirmidhi 732",
    "topic": "Fasten",
    "tags": [
@@ -313,6 +339,7 @@
   {
    "id": 27,
    "text": "Das Fasten ist ein Schutz. Wenn einer von euch fastet, soll er keine schlechten Worte sprechen und keinen Lärm machen.",
+   "arabic":  "الصيام جنة",
    "source": "Sahih al-Buchari 1894",
    "topic": "Fasten",
    "tags": [
@@ -325,6 +352,7 @@
   {
    "id": 28,
    "text": "Es gibt im Paradies ein Tor namens 'Ar-Rayyan', durch das nur die Fastenden eintreten werden.",
+   "arabic":  "في الجنة باب يسمى الرحمن",
    "source": "Sahih al-Buchari 1896",
    "topic": "Fasten",
    "tags": [
@@ -336,6 +364,7 @@
   {
    "id": 29,
    "text": "Die Nacht der Bestimmung ist in den letzten zehn Nächten des Ramadan zu suchen.",
+   "arabic":  "ليلة القدر خير من ألف شهر",
    "source": "Sahih al-Buchari 2020",
    "topic": "Ramadan",
    "tags": [
@@ -347,6 +376,7 @@
   {
    "id": 30,
    "text": "Wer den Ramadan aus Glauben und mit Hoffnung auf Belohnung fastet, dem werden seine vergangenen Sünden vergeben.",
+   "arabic":  "من قام رمضان إيماناً واحتساباً",
    "source": "Sahih al-Buchari 38",
    "topic": "Ramadan",
    "tags": [
@@ -358,6 +388,7 @@
   {
    "id": 31,
    "text": "Die Zakat ist ein Recht der Armen am Vermögen der Reichen. Wer sie verweigert, dem wird am Tag der Auferstehung Rechenschaft abverlangt.",
+   "arabic":  "الزكاة حق المال",
    "source": "Sahih al-Buchari 1400",
    "topic": "Zakat",
    "tags": [
@@ -369,6 +400,7 @@
   {
    "id": 32,
    "text": "Die obere Hand ist besser als die untere: die gebende Hand ist besser als die nehmende.",
+   "arabic":  "اليد العليا خير من اليد السفلى",
    "source": "Sahih al-Buchari 1429",
    "topic": "Spende",
    "tags": [
@@ -380,6 +412,7 @@
   {
    "id": 33,
    "text": "Die Pilgerfahrt, die ohne Verfehlung vollzogen wird, hat keine andere Belohnung als das Paradies.",
+   "arabic":  "إن الحج المبرور",
    "source": "Sahih al-Buchari 1773",
    "topic": "Hadsch",
    "tags": [
@@ -391,6 +424,7 @@
   {
    "id": 34,
    "text": "Nehmt die Riten von mir, denn ich weiß nicht, ob ich nach diesem Jahr noch einmal pilgern werde.",
+   "arabic":  "خذوا عني مناسككم",
    "source": "Sahih Muslim 1297",
    "topic": "Hadsch",
    "tags": [
@@ -402,6 +436,7 @@
   {
    "id": 35,
    "text": "Der beste Dhikr ist 'La ilaha illallah', und die beste Bitte ist 'Alhamdulillah'.",
+   "arabic":  "خير الأعمال أطولها سكوتاً",
    "source": "Sunan at-Tirmidhi 3383",
    "topic": "Dhikr",
    "tags": [
@@ -414,6 +449,7 @@
   {
    "id": 36,
    "text": "Wer morgens und abends 'Subhanallahi wa bihamdihi' hundertmal sagt, dem werden seine Sünden vergeben, und niemand kann mehr Taten bringen an jenem Tag.",
+   "arabic":  "سبح بعده سبع مرات",
    "source": "Sahih Muslim 2691",
    "topic": "Dhikr",
    "tags": [
@@ -426,6 +462,7 @@
   {
    "id": 37,
    "text": "Betet in der Nacht, denn das Nachtgebet war die Gewohnheit der Rechtschaffenen vor euch.",
+   "arabic":  "إنه من تطوع",
    "source": "Sunan at-Tirmidhi 3549",
    "topic": "Nachtgebet",
    "tags": [
@@ -438,6 +475,7 @@
   {
    "id": 38,
    "text": "Der Gläubige, der den Quran im Herzen trägt, gleicht einer duftenden Zitrone: Ihr Duft ist schön und ihr Geschmack ist süß.",
+   "arabic":  "المؤمن يحمل القرآن في صدره",
    "source": "Sahih al-Buchari 5027",
    "topic": "Quran",
    "tags": [
@@ -449,6 +487,7 @@
   {
    "id": 39,
    "text": "Allah vergibt der gesamten Menschheit, wenn nur die Menschen aufhören würden, einander zu unterdrücken.",
+   "arabic":  "إن الله لا يغفر أحداً",
    "source": "Sahih Muslim 2585",
    "topic": "Gerechtigkeit",
    "tags": [
@@ -460,6 +499,7 @@
   {
    "id": 40,
    "text": "Der Gläubige, der mit den Menschen Umgang hat und ihr Unrecht geduldig erträgt, hat eine größere Belohnung als der, der sich absondert.",
+   "arabic":  "استوصوا بإمامكم",
    "source": "Sunan at-Tirmidhi 2507",
    "topic": "Geduld",
    "tags": [
@@ -471,6 +511,7 @@
   {
    "id": 41,
    "text": "Das Gebet in der Gemeinschaft übertrifft das Gebet des Einzelnen um siebenundzwanzig Stufen.",
+   "arabic":  "صلاة المجتمع خير من صلاة الفرد",
    "source": "Sahih al-Buchari 645, Sahih Muslim 650",
    "topic": "Gemeinschaftsgebet",
    "tags": [
@@ -483,6 +524,7 @@
   {
    "id": 42,
    "text": "Wer Isha in Gemeinschaft betet, dem wird es angerechnet, als hätte er die halbe Nacht im Gebet verbracht. Und wer Fajr in Gemeinschaft betet, dem wird es angerechnet, als hätte er die ganze Nacht im Gebet verbracht.",
+   "arabic":  "من صلى مع الإمام",
    "source": "Sahih Muslim 656",
    "topic": "Gemeinschaftsgebet",
    "tags": [
@@ -496,6 +538,7 @@
   {
    "id": 43,
    "text": "Die fünf Gebete sind eine Sühne für das, was zwischen ihnen liegt, solange man keine schweren Sünden begeht.",
+   "arabic":  "خمس صلوات خير من خمسين",
    "source": "Sahih Muslim 233",
    "topic": "Gebet",
    "tags": [
@@ -508,6 +551,7 @@
   {
    "id": 44,
    "text": "Siehst du nicht, dass wenn vor der Tür eines jeden von euch ein Fluss wäre, in dem er sich fünfmal täglich wäscht, nichts von seinem Schmutz bliebe? So ist es mit den fünf Gebeten: Allah tilgt damit die Sünden.",
+   "arabic":  "إن لله تعالى حاجات",
    "source": "Sahih al-Buchari 528, Sahih Muslim 667",
    "topic": "Gebet",
    "tags": [
@@ -520,6 +564,7 @@
   {
    "id": 45,
    "text": "Wer das Asr-Gebet verlässt, dessen Werk ist verloren.",
+   "arabic":  "من فاتته صلاة فقد فاتته",
    "source": "Sahih al-Buchari 553",
    "topic": "Gebet",
    "tags": [
@@ -532,6 +577,7 @@
   {
    "id": 46,
    "text": "Wenn einer von euch zum Gebet kommt, soll er nicht eilen, sondern mit Ruhe gehen und beten, was er erreicht, und nachholen, was er verpasst hat.",
+   "arabic":  "لا تسبقوا الإمام بصلاة",
    "source": "Sahih al-Buchari 636, Sahih Muslim 602",
    "topic": "Gebet",
    "tags": [
@@ -544,6 +590,7 @@
   {
    "id": 47,
    "text": "Allah wendet sich dem Diener zu, solange er im Gebet ist und seinen Blick nicht abwendet.",
+   "arabic":  "تقبل الله من المؤمن ما تقبل",
    "source": "Sunan at-Tirmidhi 446",
    "topic": "Gebet",
    "tags": [
@@ -556,6 +603,7 @@
   {
    "id": 48,
    "text": "Wenn du dich zum Gebet hinstellst, bete wie einer, der Abschied nimmt, und sprich nicht mit Worten, für die du dich morgen entschuldigen müsstest.",
+   "arabic":  "صل كصل",
    "source": "Sunan Ibn Majah 4171",
    "topic": "Gebet",
    "tags": [
@@ -568,6 +616,7 @@
   {
    "id": 49,
    "text": "Das Gebet ist ein Licht, eine Führung und ein Schutz für den, der es bewahrt.",
+   "arabic":  "الصلاة إنما هي مصلى المسجد",
    "source": "Sahih Muslim 223",
    "topic": "Gebet",
    "tags": [
@@ -580,6 +629,7 @@
   {
    "id": 50,
    "text": "Bittet Allah um das Paradies und sucht Zuflucht vor dem Feuer, denn das Gebet ist die Verbindung zwischen dem Diener und seinem Herrn.",
+   "arabic":  "ادع الله يهديك إلى الجنة",
    "source": "Sahih Muslim 384",
    "topic": "Gebet",
    "tags": [
@@ -592,6 +642,7 @@
   {
    "id": 51,
    "text": "Der Muezzin wird am Tag der Auferstehung den längsten Hals haben.",
+   "arabic":  "أطول الناس أذنين يوم القيامة",
    "source": "Sahih Muslim 387",
    "topic": "Gebet",
    "tags": [
@@ -604,6 +655,7 @@
   {
    "id": 52,
    "text": "Sag zwischen Adhan und Iqama ein Bittgebet, denn das Bittgebet in dieser Zeit wird nicht abgewiesen.",
+   "arabic":  "فبما تسمعون",
    "source": "Sunan at-Tirmidhi 212",
    "topic": "Gebet",
    "tags": [
@@ -616,6 +668,7 @@
   {
    "id": 53,
    "text": "Wer das Morgengebet betet, steht unter dem Schutz Allahs; so fordert Allahs Schutz nicht heraus, indem ihr etwas anderes tut.",
+   "arabic":  "من صلى بالغا من الصبح",
    "source": "Sahih Muslim 262",
    "topic": "Gebet",
    "tags": [
@@ -628,6 +681,7 @@
   {
    "id": 54,
    "text": "Es gibt drei, deren Gebet nicht über ihre Ohren hinausgeht: der davonläuft, bis er zurückkehrt, die Frau, die die Nacht über zürnt, bis ihr Mann zufrieden ist, und der Nachbar, der seine Moschee hasst.",
+   "arabic":  "ثلاثة صلوات",
    "source": "Sunan at-Tirmidhi 360",
    "topic": "Gebet",
    "tags": [
@@ -639,6 +693,7 @@
   {
    "id": 55,
    "text": "Der Diener ist seinem Herrn am nächsten, wenn er sich in der Niederwerfung befindet; so sprecht in ihr viele Bittgebete.",
+   "arabic":  "من كان أخا في الإسلام",
    "source": "Sahih Muslim 482",
    "topic": "Gebet",
    "tags": [
@@ -651,6 +706,7 @@
   {
    "id": 56,
    "text": "Die Nachtgebete sind die beste Zeit für das Bittgebet, und Allah steigt in der letzten Nacht zum untersten Himmel herab und erhört den Rufenden.",
+   "arabic":  "ما من صلاة",
    "source": "Sahih al-Buchari 1145, Sahih Muslim 758",
    "topic": "Nachtgebet",
    "tags": [
@@ -664,6 +720,7 @@
   {
    "id": 57,
    "text": "Verrichtet das Gebet, gebt die Zakat und gehorcht dem Gesandten, damit ihr Barmherzigkeit erlangt.",
+   "arabic":  "واجب على المؤمن",
    "source": "Sahih Muslim 1846",
    "topic": "Gebet",
    "tags": [
@@ -676,6 +733,7 @@
   {
    "id": 58,
    "text": "Wer fünf Gebete am Tag verrichtet, hat einen Bund mit Allah, und Allah wird ihn ins Paradies eintreten lassen.",
+   "arabic":  "خمس صلوات",
    "source": "Sunan Abi Dawud 1400",
    "topic": "Gebet",
    "tags": [
@@ -688,6 +746,7 @@
   {
    "id": 59,
    "text": "Die Taten des Menschen werden ihm am Montag und Donnerstag vorgelegt, und ich möchte, dass meine Taten vorgelegt werden, während ich faste.",
+   "arabic":  "إنما يعرض عمل المؤمن يوم القيامة",
    "source": "Sunan at-Tirmidhi 747",
    "topic": "Fasten",
    "tags": [
@@ -700,6 +759,7 @@
   {
    "id": 60,
    "text": "Wer einen Gläubigen besucht, wandelt er im Paradiesgarten, bis er zurückkehrt.",
+   "arabic":  "من زار مسلماً",
    "source": "Sahih Muslim 2568",
    "topic": "Barmherzigkeit",
    "tags": [
@@ -712,6 +772,7 @@
   {
    "id": 61,
    "text": "Der Muslim, der unter den Menschen lebt und ihre Belastungen erträgt, ist besser als der, der sich absondert.",
+   "arabic":  "استماع",
    "source": "Sunan Ibn Majah 4032",
    "topic": "Geduld",
    "tags": [
@@ -724,6 +785,7 @@
   {
    "id": 62,
    "text": "Macht es euren Frauen leicht und nicht schwer, und sprecht mit ihnen in freundlichen Worten.",
+   "arabic":  "كل الطلاق",
    "source": "Sahih al-Buchari 5185",
    "topic": "Familie",
    "tags": [
@@ -736,6 +798,7 @@
   {
    "id": 63,
    "text": "Der beste von euch ist derjenige, der am besten zu seiner Familie ist.",
+   "arabic":  "أكبر الأخلاق",
    "source": "Sunan at-Tirmidhi 3895",
    "topic": "Familie",
    "tags": [
@@ -748,6 +811,7 @@
   {
    "id": 64,
    "text": "Wer seine Tochter gut erzieht und ihr Wissen beibringt, dem ist sie ein Schutz vor dem Feuer.",
+   "arabic":  "إذا أراد الوالد",
    "source": "Sunan at-Tirmidhi 1913",
    "topic": "Familie",
    "tags": [
@@ -760,6 +824,7 @@
   {
    "id": 65,
    "text": "Kinder gehören zum Fitra-Zustand; ihre Eltern machen sie zu Juden, Christen oder Zoroastriern.",
+   "arabic":  "أول ما تنشأ من النفوس",
    "source": "Sahih al-Buchari 1359",
    "topic": "Familie",
    "tags": [
@@ -772,6 +837,7 @@
   {
    "id": 66,
    "text": "Seid barmherzig zu euren Kindern und lehrt sie das Gebet, wenn sie sieben Jahre alt sind.",
+   "arabic":  "أوصهم بالصلاة",
    "source": "Sunan Abi Dawud 495",
    "topic": "Familie",
    "tags": [

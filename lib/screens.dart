@@ -2009,6 +2009,10 @@ class SettingsScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 10),
                     DropdownButtonFormField<String>(
+                      // `initialValue` aktualisiert sich nur beim ersten Build –
+                      // mit Key wird das Widget bei Sprache-Änderung neu gebaut
+                      // und zeigt den aktuellen Wert.
+                      key: ValueKey('language-${settings.language}'),
                       initialValue: settings.language,
                       decoration: const InputDecoration(labelText: 'Sprache'),
                       items: [
