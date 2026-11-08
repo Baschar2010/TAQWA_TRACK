@@ -20,6 +20,7 @@ class _AiChatScreenState extends State<AiChatScreen> {
   final TextEditingController _controller = TextEditingController();
   final ScrollController _scroll = ScrollController();
   final List<({bool isUser, String text})> _messages = <({bool isUser, String text})>[];
+  final List<Map<String, String>> _history = <Map<String, String>>[];
   bool _loading = false;
   String? _error;
 
@@ -65,10 +66,13 @@ class _AiChatScreenState extends State<AiChatScreen> {
       return;
     }
     try {
+      _history.add({'role': 'user', 'content': question});
       final answer = await _service.ask(
         question: question,
         languageCode: Localizations.localeOf(context).languageCode,
+        history: List<Map<String, String>>.from(_history),
       );
+      _history.add({'role': 'assistant', 'content': answer});
       if (!mounted) return;
       setState(() {
         _messages.add((isUser: false, text: answer));

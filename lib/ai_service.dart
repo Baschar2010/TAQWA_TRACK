@@ -36,10 +36,14 @@ class AiService {
   /// Beantwortet eine islamische Frage. Der System-Prompt sorgt dafür, dass
   /// die KI sich auf Islam, Koran, Hadith, Gebete und Alltagsfragen konzentriert
   /// und Quellenangaben (z. B. Sure/Hadith) nennt, wo möglich.
+  ///
+  /// [history] enthält optional den bisherigen Gesprächsverlauf
+  /// (Rolle + Inhalt) für kontextbezogene Nachfragen.
   Future<String> ask({
     required String question,
     required String languageCode,
     String? context,
+    List<Map<String, String>>? history,
   }) async {
     if (!isConfigured) throw const AiException('not_configured');
 
@@ -53,14 +57,23 @@ class AiService {
         'scholarly sources. Keep answers concise and practical. '
         'The user writes in this language: ${languageCode == 'de' ? 'German' : languageCode == 'ar' ? 'Arabic' : 'English'}.';
 
+    final messages = <Map<String, dynamic>>[
+      {'role': 'system', 'content': systemPrompt},
+      if (context != null && context.trim().isNotEmpty)
+        {'role': 'user', 'content': context},
+    ];
+    for (final entry in history ?? const <Map<String, String>>[]) {
+      final role = entry['role'];
+      final content = entry['content'] ?? '';
+      if ((role == 'user' || role == 'assistant') && content.trim().isNotEmpty) {
+        messages.add({'role': role, 'content': content});
+      }
+    }
+    messages.add({'role': 'user', 'content': question});
+
     final body = <String, dynamic>{
       'model': model,
-      'messages': <Map<String, dynamic>>[
-        {'role': 'system', 'content': systemPrompt},
-        if (context != null && context.trim().isNotEmpty)
-          {'role': 'user', 'content': context},
-        {'role': 'user', 'content': question},
-      ],
+      'messages': messages,
     };
 
     final response = await http.post(
