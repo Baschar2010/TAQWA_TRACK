@@ -4,7 +4,7 @@
 /// echte Paketabfrage nötig wird, reicht eine einzige Quelle im Code, damit
 /// die Anzeige nicht wieder hinterherhinkt.
 const appVersion = '4.6.0';
-const appBuild = 27;
+const appBuild = 28;
 
 /// Kontaktadresse für Support und Feedback.
 const supportEmail = 'alsafdibaschar5@gmail.com';
